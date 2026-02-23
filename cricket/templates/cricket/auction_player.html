@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auction Player</title>
+</head>
+<body>
+    <h1>Live Auction</h1>
+
+    <h2>{{ player.name }}</h2>
+    <p>Role: {{ player.role }}</p>
+    <p>Base Price: ₹{{ player.base_price }}</p>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <label>Select Team:</label>
+        <select name="team">
+            {% for team in teams %}
+                <option value="{{ team.id }}">
+                    {{ team.name }} (Remaining: {{ team.remaining_points }})
+                </option>
+            {% endfor %}
+        </select>
+
+        <br><br>
+
+        <label>Sold Price:</label>
+        <input type="number" name="sold_price" required>
+
+        <br><br>
+
+        <button type="submit">Sell Player</button>
+    </form>
+</body>
+</html>

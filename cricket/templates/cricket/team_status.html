@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Status</title>
+</head>
+<body>
+    <h1>Cricket Auction - Team Status</h1>
+        {% if user.is_staff %}
+        <p>
+            <a href="/reset-auction/" style="color:red; font-weight:bold;">
+                🔄 Reset Auction
+            </a>
+        </p>
+    {% endif %}
+
+    {% for team in teams %}
+        <hr>
+        <h2>{{ team.name }}</h2>
+        <p>Total Points: {{ team.total_points }}</p>
+        <p>Remaining Points: {{ team.remaining_points }}</p>
+        <p>Players Needed: {{ team.players_needed }}</p>
+
+        <h3>Players Bought:</h3>
+        <ul>
+            {% for player in team.player_set.all %}
+                <li>{{ player.name }} - ₹{{ player.sold_price }}</li>
+            {% empty %}
+                <li>No players yet</li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</body>
+</html>

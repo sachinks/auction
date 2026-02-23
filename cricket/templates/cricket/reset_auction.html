@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset Auction</title>
+</head>
+<body>
+    <h2>Reset Auction</h2>
+
+    <p style="color:red;">
+        WARNING: This will clear all sold players and restore team budgets.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit">Confirm Reset</button>
+    </form>
+
+    <br>
+    <a href="/teams/">Cancel</a>
+</body>
+</html>

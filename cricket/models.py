@@ -7,6 +7,7 @@ class Team(models.Model):
     name = models.CharField(max_length=100)
     total_points = models.IntegerField(default=10000)
     remaining_points = models.IntegerField(default=10000)
+    max_players = models.IntegerField(default=15)
     players_needed = models.IntegerField(default=11)
 
     def __str__(self):
