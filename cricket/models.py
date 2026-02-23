@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 
 class Team(models.Model):
     name = models.CharField(max_length=100)
@@ -33,8 +34,11 @@ class Player(models.Model):
     )
 
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    base_price = models.IntegerField()
-    sold_price = models.IntegerField(null=True, blank=True)
+    base_price = models.IntegerField(validators=[MinValueValidator(0)])
+    sold_price = models.IntegerField(null=True,
+                                     blank=True,
+                                     validators=[MinValueValidator(0)]
+                                     )
     team = models.ForeignKey(Team, null=True, blank=True, on_delete=models.SET_NULL)
 
     def save(self, *args, **kwargs):
@@ -65,6 +69,10 @@ class Player(models.Model):
     from django.core.exceptions import ValidationError
 
     def clean(self):
+
+        # Prevent sold price less than base price
+        if self.sold_price is not None and self.sold_price < self.base_price:
+            raise ValidationError("Sold price cannot be less than base price.")
 
         # Only validate if selling
         if not self.team or not self.sold_price:
