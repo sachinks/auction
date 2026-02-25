@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Auction</title>
+</head>
+<body>
+
+<h2>📢 Live Auction Board</h2>
+
+<p><strong>Stage:</strong> {{ control.current_stage }}</p>
+
+<hr>
+
+{% if control.current_player %}
+    <h3>🎤 Current Player On Stage</h3>
+    <p><strong>Name:</strong> {{ control.current_player.name }}</p>
+    <p><strong>Role:</strong> {{ control.current_player.role }}</p>
+    <p><strong>Status:</strong> {{ control.current_player.status }}</p>
+{% else %}
+    <p>No player currently on stage.</p>
+{% endif %}
+
+<hr>
+
+<h3>🏟 Teams Status</h3>
+
+<table border="1" cellpadding="6">
+    <tr>
+        <th>Team</th>
+        <th>Remaining Points</th>
+        <th>Slots Left</th>
+    </tr>
+    {% for team in teams %}
+    <tr>
+        <td>{{ team.name }}</td>
+        <td>{{ team.remaining_points }}</td>
+        <td>{{ team.auction_slots }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

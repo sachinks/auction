@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cricket Auction</title>
+</head>
+<body>
+
+<h1>🏏 Cricket Auction System</h1>
+
+<p>Welcome to the Live Auction</p>
+
+<a href="/auction/live/">
+    <button>Enter Live Auction</button>
+</a>
+
+{% if user.is_staff %}
+    <br><br>
+    <a href="/auction/control/">
+        <button>Admin Control Panel</button>
+    </a>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Control Panel</title>
+</head>
+<body>
+
+<h1>🎛 Auction Control Panel</h1>
+{% if messages %}
+    {% for message in messages %}
+        <p style="color: red;">{{ message }}</p>
+    {% endfor %}
+{% endif %}
+<p><strong>Current Stage:</strong> {{ control.current_stage }}</p>
+
+<hr>
+
+<form method="post" action="/auction/start/">
+    {% csrf_token %}
+    <button type="submit">Start Auction</button>
+</form>
+
+<br>
+
+<form method="post" action="/auction/pick/">
+    {% csrf_token %}
+    <button type="submit">Pick Random Player</button>
+</form>
+
+<br>
+
+<form method="post" action="/auction/undo/">
+    {% csrf_token %}
+    <button type="submit">Undo Last Sale</button>
+</form>
+
+<hr>
+
+{% if control.current_player %}
+    <h2>🎤 Current Player</h2>
+    <p><strong>Name:</strong> {{ control.current_player.name }}</p>
+    <p><strong>Role:</strong> {{ control.current_player.role }}</p>
+
+    <h3>Sell Player</h3>
+    <form method="post" action="/auction/sell/">
+        {% csrf_token %}
+        <label>Team:</label>
+        <select name="team_id">
+            {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Price:</label>
+        <input type="number" name="price" required>
+
+        <button type="submit">Sell</button>
+    </form>
+
+    <br>
+
+    <form method="post" action="/auction/unsold/">
+        {% csrf_token %}
+        <button type="submit">Mark Unsold</button>
+    </form>
+
+    <br>
+
+    <form method="post" action="/auction/not-playing/">
+        {% csrf_token %}
+        <button type="submit">Mark Not Playing</button>
+    </form>
+
+{% else %}
+    <p>No player selected.</p>
+{% endif %}
+
+</body>
+</html>
