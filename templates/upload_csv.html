@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card" style="max-width:600px;margin:auto;">
+
+<h2 style="text-align:center;">Upload Players CSV</h2>
+
+<form method="POST" enctype="multipart/form-data">
+
+{% csrf_token %}
+
+<br>
+
+<input type="file" name="file" required>
+
+<br><br>
+
+<button style="padding:12px;width:100%;background:#007bff;color:white;font-size:16px;">
+Upload CSV
+</button>
+
+</form>
+
+
+{% if created %}
+
+<hr>
+
+<h3>{{ created }} Players Imported</h3>
+
+{% endif %}
+
+
+{% if errors %}
+
+<hr>
+
+<h3>Errors</h3>
+
+<ul>
+
+{% for e in errors %}
+
+<li>{{ e }}</li>
+
+{% endfor %}
+
+</ul>
+
+{% endif %}
+
+</div>
+
+{% endblock %}

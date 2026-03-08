@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div style="display:flex;gap:40px;">
+
+<!-- CURRENT PLAYER -->
+
+<div class="card" style="width:40%;">
+
+<h2>Current Player</h2>
+
+{% if not auction_started %}
+
+<p>Auction Not Started</p>
+
+{% elif player %}
+
+<h1>{{ player.name }}</h1>
+<p>Role: {{ player.role }}</p>
+<p>Place: {{ player.place }}</p>
+
+{% else %}
+
+<p>No player currently in auction</p>
+
+{% endif %}
+
+</div>
+
+
+
+<!-- TEAM PURCHASE BOARD -->
+
+<div class="card" style="width:60%;">
+
+<h2>Teams</h2>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+
+{% for team in teams %}
+
+<div style="background:#222;padding:10px;border-radius:6px;">
+
+<b>{{ team.name }}</b><br>
+
+Points: {{ team.remaining_points }}
+
+<br><br>
+
+{% for p in team.players.all %}
+
+<div style="font-size:13px;">
+{{ p.name }} ({{ p.sold_price }})
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<!-- AUTO REFRESH -->
+
+<script>
+
+setTimeout(function(){
+
+location.reload()
+
+}, 5000)
+
+</script>
+
+
+{% endblock %}

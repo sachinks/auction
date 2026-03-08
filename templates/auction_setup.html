@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card" style="max-width:600px;margin:auto;">
+
+<h2 style="text-align:center;">Start Auction</h2>
+
+<form method="POST" action="/auction/start/">
+
+{% csrf_token %}
+
+<br>
+
+<label>Total Points</label><br>
+<input type="number" name="total_points" required>
+
+<br><br>
+
+<label>Bidding Slots</label><br>
+<input type="number" name="bidding_slots" required>
+
+<br><br>
+
+<label>Max Squad Size</label><br>
+<input type="number" name="max_squad_size" required>
+
+<br><br>
+
+<h3>Base Prices</h3>
+
+<label>All Rounder (AR)</label><br>
+<input type="number" name="base_price_AR" required>
+
+<br><br>
+
+<label>Batsman (BAT)</label><br>
+<input type="number" name="base_price_BAT" required>
+
+<br><br>
+
+<label>Bowler (BOWL)</label><br>
+<input type="number" name="base_price_BOWL" required>
+
+<br><br>
+
+<label>Player (PLY)</label><br>
+<input type="number" name="base_price_PLY" required>
+
+<br><br>
+
+<button style="padding:12px;width:100%;background:green;color:white;font-size:18px;">
+Start Auction
+</button>
+
+</form>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card">
+
+<h2 style="text-align:center;">Auction Audit Log</h2>
+
+<table style="width:100%;margin-top:20px;border-collapse:collapse;">
+
+<thead>
+
+<tr style="background:#333;">
+<th style="padding:10px;">Time</th>
+<th style="padding:10px;">Player</th>
+<th style="padding:10px;">Team</th>
+<th style="padding:10px;">Action</th>
+<th style="padding:10px;">Amount</th>
+<th style="padding:10px;">Round</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for a in actions %}
+
+<tr style="border-bottom:1px solid #444;">
+
+<td style="padding:8px;">
+{{ a.timestamp|date:"H:i:s" }}
+</td>
+
+<td style="padding:8px;">
+{{ a.player.name }}
+</td>
+
+<td style="padding:8px;">
+{% if a.team %}
+{{ a.team.name }}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td style="padding:8px;">
+{{ a.action }}
+</td>
+
+<td style="padding:8px;">
+{% if a.amount %}
+{{ a.amount }}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td style="padding:8px;">
+{{ a.round }}
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="6" style="text-align:center;padding:20px;">
+No auction actions yet
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 style="text-align:center;font-size:36px;">
+KOLIGE PREMIER LEAGUE
+</h1>
+
+
+<div style="display:flex;gap:40px;margin-top:30px;">
+
+
+<!-- PLAYER CARD -->
+
+<div style="width:40%;padding:20px;background:#111;color:white;border-radius:10px;">
+
+{% if player %}
+
+<h2 style="font-size:28px;">{{ player.name }}</h2>
+
+<p>Role: {{ player.role }}</p>
+<p>Place: {{ player.place }}</p>
+
+<p>Base Price: {{ player.base_price }}</p>
+
+<br>
+
+<label>Bid Amount</label><br>
+
+<input id="bid_amount"
+       value="{{ player.base_price }}"
+       style="padding:8px;font-size:16px;width:150px;">
+
+<button onclick="increaseBid()">▲</button>
+<button onclick="decreaseBid()">▼</button>
+
+<br><br>
+
+<p>Selected Team: <b id="selected_team">None</b></p>
+
+{% else %}
+
+<h2>No Players Remaining</h2>
+
+{% endif %}
+
+</div>
+
+
+
+<!-- TEAM GRID -->
+
+<div style="width:60%;">
+
+<h3>Teams</h3>
+
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
+
+{% for team in teams %}
+
+<button
+class="team-button"
+onclick="selectTeam({{ team.team_serial_number }}, this)"
+style="padding:12px;font-weight:bold;border-radius:6px;">
+
+{{ team.short }} <br>
+{{ team.remaining_points }}
+
+</button>
+
+{% endfor %}
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<!-- ACTION BUTTONS -->
+
+{% if player %}
+
+<div style="margin-top:30px;">
+
+<button onclick="sellPlayer()" style="padding:12px;background:green;color:white;">
+SELL
+</button>
+
+<button onclick="unsoldPlayer()" style="padding:12px;margin-left:10px;">
+UNSOLD
+</button>
+
+<button onclick="notPlaying()" style="padding:12px;margin-left:10px;">
+NOT PLAYING
+</button>
+
+<a href="/auction/undo/" style="margin-left:20px;">
+Undo Last Action
+</a>
+
+</div>
+
+{% endif %}
+
+
+
+<script>
+
+let increment = {{ increment|default:100 }}
+
+let selectedTeam = null
+
+
+function increaseBid(){
+
+let input = document.getElementById("bid_amount")
+
+input.value = parseInt(input.value) + increment
+
+}
+
+
+function decreaseBid(){
+
+let input = document.getElementById("bid_amount")
+
+input.value = Math.max(0, parseInt(input.value) - increment)
+
+}
+
+
+function selectTeam(teamId, btn){
+
+selectedTeam = teamId
+
+let name = btn.innerText.split("\n")[0]
+
+document.getElementById("selected_team").innerText = name
+
+document.querySelectorAll(".team-button").forEach(b => {
+b.style.border = "none"
+})
+
+btn.style.border = "3px solid yellow"
+
+}
+
+
+function sellPlayer(){
+
+if(!selectedTeam){
+alert("Select a team first")
+return
+}
+
+let amount = document.getElementById("bid_amount").value
+
+fetch("/auction/sell/",{
+method:"POST",
+headers:{'Content-Type':'application/x-www-form-urlencoded'},
+body:`player_id={{ player.serial_number }}&team_id=${selectedTeam}&amount=${amount}`
+})
+.then(()=>location.reload())
+
+}
+
+
+function unsoldPlayer(){
+
+fetch("/auction/unsold/",{
+method:"POST",
+headers:{'Content-Type':'application/x-www-form-urlencoded'},
+body:`player_id={{ player.serial_number }}`
+})
+.then(()=>location.reload())
+
+}
+
+
+function notPlaying(){
+
+fetch("/auction/not-playing/",{
+method:"POST",
+headers:{'Content-Type':'application/x-www-form-urlencoded'},
+body:`player_id={{ player.serial_number }}`
+})
+.then(()=>location.reload())
+
+}
+
+</script>
+
+
+{% endblock %}

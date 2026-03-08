@@ -1,0 +1,77 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+
+<title>KOLIGE PREMIER LEAGUE</title>
+
+<style>
+
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background-image:url("{% static 'backgrounds/auction_bg.jpg' %}");
+    background-size:cover;
+    background-position:center;
+    background-attachment:fixed;
+    color:white;
+}
+
+.container{
+    width:95%;
+    margin:auto;
+    padding-top:20px;
+}
+
+.header{
+    text-align:center;
+    font-size:40px;
+    font-weight:bold;
+    margin-bottom:20px;
+}
+
+.card{
+    background:rgba(0,0,0,0.65);
+    padding:20px;
+    border-radius:10px;
+}
+
+button{
+    cursor:pointer;
+    border:none;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+input{
+    padding:8px;
+    font-size:16px;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+<div class="header">
+KOLIGE PREMIER LEAGUE
+</div>
+
+{% block content %}
+
+{% endblock %}
+
+</div>
+
+</body>
+
+</html>

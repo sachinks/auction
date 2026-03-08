@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card">
+
+<h2 style="text-align:center;">Jersey Management</h2>
+
+<div style="text-align:right;margin-bottom:15px;">
+<a href="/jersey/pdf/" style="padding:10px;background:green;color:white;text-decoration:none;border-radius:5px;">
+Export PDF
+</a>
+</div>
+
+<table style="width:100%;border-collapse:collapse;">
+
+<thead>
+
+<tr style="background:#333;">
+<th style="padding:10px;">Player</th>
+<th style="padding:10px;">Team</th>
+<th style="padding:10px;">Jersey Name</th>
+<th style="padding:10px;">Number</th>
+<th style="padding:10px;">Size</th>
+<th style="padding:10px;">Sponsor</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for j in jerseys %}
+
+<tr style="border-bottom:1px solid #444;">
+
+<td style="padding:8px;">
+{{ j.player.name }}
+</td>
+
+<td style="padding:8px;">
+{% if j.player.team %}
+{{ j.player.team.name }}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td style="padding:8px;">
+{{ j.jersey_name }}
+</td>
+
+<td style="padding:8px;">
+{{ j.jersey_number }}
+</td>
+
+<td style="padding:8px;">
+{{ j.size_text }}
+</td>
+
+<td style="padding:8px;">
+{{ j.sponsor }}
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="6" style="text-align:center;padding:20px;">
+No jersey records yet
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}
