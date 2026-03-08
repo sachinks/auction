@@ -37,7 +37,8 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Project logs
-logs/*.log
+logs/*
+!logs/.gitkeep
 
 # Unit test / coverage reports
 htmlcov/
