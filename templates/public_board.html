@@ -1,84 +1,445 @@
-{% extends "base.html" %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ ts.tournament_name }}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
 
-{% block content %}
+body{
+  font-family:'Segoe UI',system-ui,Arial,sans-serif;
+  min-height:100vh;
+  color:#e8e8e8;
+  background:#050510;
+  {% if banner_url %}
+    background-image:url('{{ banner_url }}');
+  {% else %}
+    background-image:url("{% static 'backgrounds/auction_bg.jpg' %}");
+  {% endif %}
+  background-size:cover;
+  background-position:center;
+  background-attachment:fixed;
+}
 
-<div style="display:flex;gap:40px;">
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background:linear-gradient(160deg,rgba(2,2,16,0.85),rgba(4,4,20,0.80));
+  z-index:0;pointer-events:none;
+}
 
-<!-- CURRENT PLAYER -->
+.page{
+  position:relative;z-index:1;
+  width:96%;max-width:1800px;
+  margin:0 auto;
+  padding:16px 0 48px;
+}
 
-<div class="card" style="width:40%;">
+/* ─── HEADER ──────────────────────────────────────── */
+.hdr{
+  text-align:center;
+  padding:26px 24px 20px;
+  margin-bottom:20px;
+  background:linear-gradient(135deg,rgba(6,6,24,0.98),rgba(3,3,14,0.98));
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 8px 40px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.hdr-name{
+  font-size:36px;font-weight:900;letter-spacing:6px;text-transform:uppercase;
+  background:linear-gradient(90deg,#f39c12,#e74c3c 50%,#f39c12);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:14px;line-height:1;
+}
+.hdr-dates{
+  display:flex;justify-content:center;align-items:stretch;gap:0;
+  border:1px solid rgba(255,255,255,0.07);border-radius:10px;
+  overflow:hidden;display:inline-flex;
+}
+.hdr-date{padding:10px 32px;text-align:center;border-left:1px solid rgba(255,255,255,0.07);}
+.hdr-date:first-child{border-left:none;}
+.hdr-date-lbl{font-size:8px;text-transform:uppercase;letter-spacing:3px;margin-bottom:5px;opacity:0.5;}
+.hdr-date-val{font-size:18px;font-weight:800;}
+.hdr-date-sub{font-size:11px;color:#555;margin-top:2px;}
 
-<h2>Current Player</h2>
+/* ─── SECTION LABEL ───────────────────────────────── */
+.slbl{
+  font-size:9px;color:#444;text-transform:uppercase;letter-spacing:3px;
+  margin-bottom:14px;
+}
 
+/* ─── PRE-AUCTION CARD ────────────────────────────── */
+.pre-card{
+  background:rgba(6,6,20,0.92);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,0.6);
+}
+.pre-card-section{padding:22px 24px;}
+.pre-divider{height:1px;background:rgba(255,255,255,0.05);}
+
+/* ─── TEAM TILE (pre-auction) ─────────────────────── */
+.team-tile{
+  background:linear-gradient(145deg,rgba(18,18,38,0.9),rgba(10,10,26,0.9));
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:12px;
+  padding:18px 14px 16px;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.team-tile::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,#f39c12,#e74c3c);
+}
+.team-tile-abbr{
+  font-size:26px;font-weight:900;letter-spacing:2px;
+  background:linear-gradient(135deg,#f39c12,#e74c3c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;line-height:1;
+}
+.team-tile-name{font-size:13px;font-weight:700;color:#ddd;margin-bottom:4px;}
+.team-tile-owner{font-size:11px;color:#666;font-style:italic;}
+
+/* ─── PLAYER ROLE BLOCK ───────────────────────────── */
+.role-block{
+  border-radius:10px;padding:14px;
+  border:1px solid rgba(255,255,255,0.05);
+}
+.role-block-ar  {background:rgba(243,156,18,0.06); border-color:rgba(243,156,18,0.15);}
+.role-block-bat {background:rgba(52,152,219,0.06);  border-color:rgba(52,152,219,0.15);}
+.role-block-bowl{background:rgba(46,204,113,0.06);  border-color:rgba(46,204,113,0.15);}
+.role-block-ply {background:rgba(140,140,140,0.04); border-color:rgba(140,140,140,0.1);}
+
+.role-block-hdr{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+  margin-bottom:10px;padding-bottom:8px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.role-count{font-weight:400;opacity:0.4;font-size:10px;}
+
+.prow{
+  display:flex;align-items:baseline;gap:6px;
+  padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.prow:last-child{border-bottom:none;}
+.prow-num{font-size:9px;font-weight:700;min-width:20px;text-align:right;opacity:0.6;}
+.prow-name{font-size:13px;color:#ccc;flex:1;}
+.prow-place{font-size:10px;color:#3a3a4a;}
+
+/* ─── LIVE AUCTION: ON-BLOCK ──────────────────────── */
+.on-block{
+  width:250px;min-width:250px;
+  background:linear-gradient(145deg,rgba(12,12,28,0.98),rgba(6,6,18,0.98));
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;padding:22px 16px;
+  text-align:center;position:relative;
+  box-shadow:0 0 50px rgba(0,0,0,0.7);
+}
+.ob-badge{
+  display:inline-block;padding:4px 14px;border-radius:20px;
+  font-size:9px;font-weight:700;letter-spacing:2px;margin-bottom:12px;
+}
+.ob-num{font-size:10px;color:#2a2a3a;margin-bottom:4px;}
+.ob-name{font-size:30px;font-weight:900;line-height:1.1;margin-bottom:6px;}
+.ob-place{font-size:11px;color:#444;margin-bottom:18px;}
+.ob-price-box{
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;padding:12px;
+}
+.ob-price-lbl{font-size:8px;color:#444;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}
+.ob-price-val{font-size:32px;font-weight:900;color:#f39c12;}
+
+/* ─── LIVE TEAM MINI CARD ─────────────────────────── */
+.team-mini{
+  background:rgba(8,8,20,0.92);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;padding:10px;
+  overflow:hidden;
+}
+.tm-hdr{border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:7px;margin-bottom:7px;}
+.tm-name{font-size:12px;font-weight:700;color:#ddd;}
+.tm-pts{font-size:11px;color:#f39c12;font-weight:700;margin-top:2px;}
+
+/* ─── SQUAD CARD (post-auction) ───────────────────── */
+.squad{
+  background:linear-gradient(145deg,rgba(8,8,22,0.97),rgba(5,5,15,0.97));
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,0.5);
+}
+.squad-hdr{
+  padding:14px 18px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  background:rgba(255,255,255,0.025);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.squad-name{font-size:15px;font-weight:800;color:#fff;}
+.squad-pts{font-size:12px;color:#f39c12;font-weight:700;}
+.squad-abbr{
+  font-size:20px;font-weight:900;letter-spacing:2px;
+  background:linear-gradient(135deg,#f39c12,#e74c3c);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ─── HELPERS ─────────────────────────────────────── */
+.c-ar  {color:#f39c12;} .c-bat{color:#3498db;} .c-bowl{color:#2ecc71;} .c-ply{color:#aaa;}
+.dim-ar{color:#7a4a08;} .dim-bat{color:#1a4060;} .dim-bowl{color:#1a5030;} .dim-ply{color:#444;}
+</style>
+</head>
+<body>
+<div class="page">
+
+
+{# ══════════════════════════════════════════════════ #}
+{# HEADER — always visible                           #}
+{# ══════════════════════════════════════════════════ #}
+<div class="hdr">
+  <div class="hdr-name">{{ ts.tournament_name }}</div>
+
+  {% if ts.auction_date or ts.match_date %}
+  <div class="hdr-dates">
+    {% if ts.auction_date %}
+    <div class="hdr-date">
+      <div class="hdr-date-lbl" style="color:#f39c12;">Auction</div>
+      <div class="hdr-date-val" style="color:#f39c12;">{{ ts.auction_date|date:"d M Y" }}</div>
+      <div class="hdr-date-sub">{{ ts.auction_date|date:"H:i" }}</div>
+    </div>
+    {% endif %}
+    {% if ts.match_date %}
+    <div class="hdr-date">
+      <div class="hdr-date-lbl" style="color:#3498db;">First Match</div>
+      <div class="hdr-date-val" style="color:#3498db;">{{ ts.match_date|date:"d M Y" }}</div>
+      <div class="hdr-date-sub">{{ ts.match_date|date:"H:i" }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div style="font-size:12px;color:#333;letter-spacing:3px;text-transform:uppercase;">Coming Soon</div>
+  {% endif %}
+</div>
+
+
+{# ══════════════════════════════════════════════════ #}
+{# PRE-AUCTION — single card with teams + players    #}
+{# ══════════════════════════════════════════════════ #}
 {% if not auction_started %}
 
-<p>Auction Not Started</p>
+<div class="pre-card">
 
-{% elif player %}
+  {# ── Teams ── #}
+  {% if teams %}
+  <div class="pre-card-section">
+    <div class="slbl">Participating Teams</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
+      {% for team in teams %}
+      <div class="team-tile">
+        <div class="team-tile-abbr">{{ team.get_short }}</div>
+        <div class="team-tile-name">{{ team.name }}</div>
+        {% if team.owners %}<div class="team-tile-owner">{{ team.owners }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% if pre_auction_players %}<div class="pre-divider"></div>{% endif %}
+  {% endif %}
 
-<h1>{{ player.name }}</h1>
-<p>Role: {{ player.role }}</p>
-<p>Place: {{ player.place }}</p>
+  {# ── Players ── #}
+  {% if pre_auction_players %}
+  <div class="pre-card-section">
+    <div class="slbl">Registered Players</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">
 
+      {% for role_label, players in pre_auction_players.items %}{% if players %}
+      <div class="role-block role-block-{% if role_label == 'AR' %}ar{% elif role_label == 'BAT' %}bat{% elif role_label == 'BOWL' %}bowl{% else %}ply{% endif %}">
+        <div class="role-block-hdr">
+          <span class="{% if role_label == 'AR' %}c-ar{% elif role_label == 'BAT' %}c-bat{% elif role_label == 'BOWL' %}c-bowl{% else %}c-ply{% endif %}">
+            {% if role_label == 'AR' %}⚡ All Rounders
+            {% elif role_label == 'BAT' %}🏏 Batsmen
+            {% elif role_label == 'BOWL' %}🎯 Bowlers
+            {% else %}▸ Players{% endif %}
+          </span>
+          <span class="role-count">{{ players|length }}</span>
+        </div>
+        {% for p in players %}
+        <div class="prow">
+          <span class="prow-num {% if role_label == 'AR' %}c-ar{% elif role_label == 'BAT' %}c-bat{% elif role_label == 'BOWL' %}c-bowl{% else %}c-ply{% endif %}">{{ p.serial_number }}</span>
+          <span class="prow-name">{{ p.name }}</span>
+          {% if p.place %}<span class="prow-place">{{ p.place }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}{% endfor %}
+
+    </div>
+  </div>
+  {% endif %}
+
+</div>{# end .pre-card #}
+
+
+{# ══════════════════════════════════════════════════ #}
+{# LIVE AUCTION                                       #}
+{# ══════════════════════════════════════════════════ #}
+{% elif state.phase != "DONE" %}
+
+<div style="display:flex;gap:14px;margin-bottom:14px;align-items:flex-start;">
+
+  {# On-block player #}
+  <div class="on-block">
+    <div style="position:absolute;top:12px;right:14px;font-size:10px;">
+      {% if state.phase == "REBID" %}
+        <span style="color:#f39c12;font-weight:700;">↺ {{ unsold_count }}</span>
+      {% else %}
+        <span style="color:#2ecc71;font-weight:700;">{{ available_count }} left</span>
+      {% endif %}
+    </div>
+
+    {% if player %}
+      {% if player.role == "AR" %}
+        <div class="ob-badge" style="background:rgba(243,156,18,0.12);color:#f39c12;border:1px solid rgba(243,156,18,0.25);">ALL ROUNDER</div>
+      {% elif player.role == "BAT" %}
+        <div class="ob-badge" style="background:rgba(52,152,219,0.12);color:#3498db;border:1px solid rgba(52,152,219,0.25);">BATSMAN</div>
+      {% elif player.role == "BOWL" %}
+        <div class="ob-badge" style="background:rgba(46,204,113,0.12);color:#2ecc71;border:1px solid rgba(46,204,113,0.25);">BOWLER</div>
+      {% else %}
+        <div class="ob-badge" style="background:rgba(160,160,160,0.08);color:#aaa;border:1px solid rgba(160,160,160,0.15);">PLAYER</div>
+      {% endif %}
+      <div class="ob-num">#{{ player.serial_number }}</div>
+      <div class="ob-name {% if player.role == 'AR' %}c-ar{% elif player.role == 'BAT' %}c-bat{% elif player.role == 'BOWL' %}c-bowl{% else %}c-ply{% endif %}">{{ player.name }}</div>
+      <div class="ob-place">{{ player.place }}</div>
+      <div class="ob-price-box">
+        <div class="ob-price-lbl">Base Price</div>
+        <div class="ob-price-val">{{ player.base_price }}</div>
+      </div>
+    {% else %}
+      <div style="padding:52px 0;">
+        <div style="font-size:52px;opacity:0.15;margin-bottom:12px;">⏳</div>
+        <div style="font-size:12px;color:#333;">Waiting...</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Live team grid #}
+  <div style="flex:1;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;">
+      {% for team in teams %}
+      <div class="team-mini">
+        <div class="tm-hdr">
+          <div class="tm-name">{{ team.name }}</div>
+          <div class="tm-pts">{{ team.remaining_points }} pts</div>
+        </div>
+        {% if team.sold_players %}
+          <table style="width:100%;border-collapse:collapse;">
+            {% for p in team.sold_players %}
+            <tr style="border-top:1px solid rgba(255,255,255,0.03);">
+              <td style="padding:3px 0;font-size:9px;font-weight:700;width:18px;
+                {% if p.role == 'AR' %}color:#7a4a08;{% elif p.role == 'BAT' %}color:#1a4060;{% elif p.role == 'BOWL' %}color:#1a5030;{% else %}color:#3a3a3a;{% endif %}">
+                {{ p.serial_number }}
+              </td>
+              <td style="padding:3px 4px;font-size:12px;
+                {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#bbb;{% endif %}">
+                {{ p.name }}
+              </td>
+              <td style="padding:3px 0;font-size:10px;color:#8a6010;text-align:right;">{{ p.sold_price }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <div style="font-size:11px;color:#1a1a28;text-align:center;padding:8px 0;">—</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+
+{# ══════════════════════════════════════════════════ #}
+{# POST-AUCTION SQUADS                                #}
+{# ══════════════════════════════════════════════════ #}
 {% else %}
 
-<p>No player currently in auction</p>
-
-{% endif %}
-
+<div style="text-align:center;padding:18px 20px;margin-bottom:20px;
+  background:linear-gradient(135deg,rgba(39,174,96,0.07),rgba(20,80,40,0.1));
+  border:1px solid rgba(39,174,96,0.18);border-radius:12px;">
+  <div style="font-size:30px;margin-bottom:8px;">🏆</div>
+  <div style="font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:5px;margin-bottom:6px;">Auction Complete</div>
+  {% if ts.match_date %}
+  <div style="font-size:14px;color:#3498db;">
+    Matches begin {{ ts.match_date|date:"d M Y" }} at {{ ts.match_date|date:"H:i" }}
+  </div>
+  {% endif %}
 </div>
 
-
-
-<!-- TEAM PURCHASE BOARD -->
-
-<div class="card" style="width:60%;">
-
-<h2>Teams</h2>
-
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-
-{% for team in teams %}
-
-<div style="background:#222;padding:10px;border-radius:6px;">
-
-<b>{{ team.name }}</b><br>
-
-Points: {{ team.remaining_points }}
-
-<br><br>
-
-{% for p in team.players.all %}
-
-<div style="font-size:13px;">
-{{ p.name }} ({{ p.sold_price }})
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;">
+  {% for team in teams %}{% if team.sold_players %}
+  <div class="squad">
+    <div class="squad-hdr">
+      <div>
+        <div class="squad-name">{{ team.name }}</div>
+        <div style="margin-top:5px;font-size:11px;color:#555;">
+          {{ team.sold_players|length }} player{{ team.sold_players|length|pluralize }} · {{ team.remaining_points }} pts left
+        </div>
+      </div>
+      <div class="squad-abbr">{{ team.get_short }}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:rgba(255,255,255,0.01);">
+          <th style="padding:6px 14px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Player</th>
+          <th style="padding:6px 8px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">₹</th>
+          <th style="padding:6px 14px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Jersey</th>
+          <th style="padding:6px 8px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">#</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in team.sold_players %}
+        <tr style="border-top:1px solid rgba(255,255,255,0.035);">
+          <td style="padding:8px 14px;">
+            <span style="font-size:9px;font-weight:700;margin-right:6px;opacity:0.55;
+              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#888;{% endif %}">
+              {{ p.serial_number }}
+            </span>
+            <span style="font-size:13px;font-weight:600;
+              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#ccc;{% endif %}">
+              {{ p.name }}
+            </span>
+          </td>
+          <td style="padding:8px;text-align:center;font-size:12px;color:#c08020;font-weight:700;">{{ p.sold_price }}</td>
+          <td style="padding:8px 14px;font-size:12px;color:#777;">
+            {% if p.jersey %}{{ p.jersey.jersey_name }}{% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
+          </td>
+          <td style="padding:8px;text-align:center;">
+            {% if p.jersey %}
+              <span style="background:rgba(116,169,245,0.12);color:#74a9f5;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">
+                {{ p.jersey.jersey_number }}
+              </span>
+            {% else %}
+              <span style="color:#1e1e2e;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}{% endfor %}
 </div>
 
-{% endfor %}
-
+<div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;">
+  <span style="font-size:9px;color:#333;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#f39c12;display:inline-block;"></span>All Rounder</span>
+  <span style="font-size:9px;color:#333;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#3498db;display:inline-block;"></span>Batsman</span>
+  <span style="font-size:9px;color:#333;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#2ecc71;display:inline-block;"></span>Bowler</span>
+  <span style="font-size:9px;color:#333;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#888;display:inline-block;"></span>Player</span>
 </div>
 
-{% endfor %}
+{% endif %}{# end state branches #}
 
-</div>
-
-</div>
-
-</div>
-
-
-
-<!-- AUTO REFRESH -->
-
-<script>
-
-setTimeout(function(){
-
-location.reload()
-
-}, 5000)
-
-</script>
-
-
-{% endblock %}
+</div>{# end .page #}
+<script>setTimeout(()=>location.reload(),5000);</script>
+</body>
+</html>

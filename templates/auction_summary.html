@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  <div>
+    <h2 style="font-size:22px;font-weight:800;">Auction Summary</h2>
+    {% if config and config.auction_date %}
+      <div style="color:#f39c12;font-size:13px;margin-top:4px;">
+        {% if config.match_date %}
+          <div style="color:#3498db;font-size:13px;margin-top:4px;">
+            Matches: {{ config.match_date|date:"d M Y, H:i" }}
+          </div>
+        {% endif %}
+        {% if config.auction_date %}
+          <div style="color:#f39c12;font-size:12px;margin-top:2px;">
+            Auction: {{ config.auction_date|date:"d M Y, H:i" }}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <a href="/auction/" style="color:#888;font-size:12px;text-decoration:none;padding:8px 14px;border:1px solid #333;border-radius:6px;">← Auction</a>
+    <a href="/jersey/" style="background:#2980b9;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;">Jersey Management →</a>
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+  {% for team in teams %}
+  <div class="card" style="padding:12px 20px;text-align:center;min-width:100px;">
+    <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;">{{ team.name }}</div>
+    <div style="font-size:22px;font-weight:800;color:#f39c12;">{{ team.player_count }}</div>
+    <div style="font-size:10px;color:#666;">players</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Team cards grid -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+  {% for team in teams %}
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="background:rgba(255,255,255,0.05);padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:15px;font-weight:700;">{{ team.name }}</div>
+          {% if team.owners %}<div style="font-size:11px;color:#666;margin-top:2px;">{{ team.owners }}</div>{% endif %}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#666;">Remaining</div>
+          <div style="font-size:17px;font-weight:700;color:#f39c12;">{{ team.remaining_points }}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;">
+        <div style="font-size:11px;color:#888;">Spent: <span style="color:#fff;font-weight:700;">{{ team.total_spent }}</span></div>
+        <div style="font-size:11px;color:#888;">Players: <span style="color:#fff;font-weight:700;">{{ team.player_count }}</span></div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;">
+      {% if team.sold_players %}
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>
+            {% for p in team.sold_players %}
+            <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+              <td style="padding:5px 0;font-size:12px;color:#555;width:28px;">{{ p.serial_number }}</td>
+              <td style="padding:5px 0;font-size:13px;">
+                <span class="color-{% if p.role == 'AR' %}ar{% elif p.role == 'BAT' %}bat{% elif p.role == 'BOWL' %}bowl{% else %}ply{% endif %}">
+                  {{ p.name }}
+                </span>
+              </td>
+              <td style="padding:5px 0;text-align:center;">
+                <span class="badge badge-{% if p.role == 'AR' %}ar{% elif p.role == 'BAT' %}bat{% elif p.role == 'BOWL' %}bowl{% else %}ply{% endif %}" style="font-size:9px;">{{ p.role }}</span>
+              </td>
+              <td style="padding:5px 0;font-size:12px;color:#f39c12;text-align:right;font-weight:700;">{{ p.sold_price }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div style="text-align:center;padding:14px 0;color:#333;font-size:12px;">No players purchased</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="max-width:580px;margin:30px auto;padding:36px;">
+
+  <h2 style="font-size:18px;font-weight:800;margin-bottom:6px;">Tournament Settings</h2>
+  <p style="color:#555;font-size:12px;margin-bottom:28px;">
+    These settings take effect immediately on the public board.
+    You can set them any time — before or after starting the auction.
+  </p>
+
+  {% if msg %}
+    <div style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);
+      padding:10px 16px;border-radius:6px;font-size:13px;color:#2ecc71;margin-bottom:20px;">
+      ✓ {{ msg }}
+    </div>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Tournament Name -->
+    <div style="margin-bottom:22px;">
+      <label style="font-size:11px;color:#f39c12;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+        Tournament Name
+      </label>
+      <input type="text" name="tournament_name"
+        value="{{ ts.tournament_name }}"
+        placeholder="e.g. Kolige Premier League 2025"
+        style="width:100%;margin-top:6px;font-size:16px;font-weight:600;">
+      <div style="font-size:10px;color:#555;margin-top:4px;">
+        Shown as the title on the public board and all admin pages.
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #1a1a2e;margin-bottom:22px;"></div>
+
+    <!-- Auction Date -->
+    <div style="margin-bottom:18px;">
+      <label style="font-size:11px;color:#f39c12;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+        Auction Date &amp; Time
+      </label>
+      <input type="datetime-local" name="auction_date"
+        value="{% if ts.auction_date %}{{ ts.auction_date|date:'Y-m-d' }}T{{ ts.auction_date|date:'H:i' }}{% endif %}"
+        style="width:100%;margin-top:6px;">
+      <div style="font-size:10px;color:#555;margin-top:4px;">
+        Displayed on the public board before auction starts.
+      </div>
+    </div>
+
+    <!-- Match Date -->
+    <div style="margin-bottom:22px;">
+      <label style="font-size:11px;color:#3498db;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+        Match Date &amp; Time
+      </label>
+      <input type="datetime-local" name="match_date"
+        value="{% if ts.match_date %}{{ ts.match_date|date:'Y-m-d' }}T{{ ts.match_date|date:'H:i' }}{% endif %}"
+        style="width:100%;margin-top:6px;">
+      <div style="font-size:10px;color:#555;margin-top:4px;">
+        Displayed on public board and summary page.
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #1a1a2e;margin-bottom:22px;"></div>
+
+    <!-- Banner -->
+    <div style="margin-bottom:22px;">
+      <label style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+        Background Banner Image
+      </label>
+      <input type="file" name="banner" accept="image/*"
+        style="width:100%;margin-top:6px;margin-bottom:6px;">
+      <div style="font-size:10px;color:#555;">JPG or PNG. Used as background on all pages. Leave empty to keep current.</div>
+    </div>
+
+    {% if current_banner %}
+      <div style="margin-bottom:22px;">
+        <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Current Banner</div>
+        <img src="{{ current_banner }}" alt="Current banner"
+          style="width:100%;border-radius:8px;border:1px solid #222;max-height:160px;object-fit:cover;">
+      </div>
+    {% endif %}
+
+    <button type="submit" class="btn-primary" style="width:100%;padding:13px;font-size:15px;">
+      Save Settings
+    </button>
+
+  </form>
+</div>
+
+{% endblock %}

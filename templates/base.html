@@ -1,77 +1,96 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html>
 <head>
-
 <meta charset="utf-8">
-
-<title>KOLIGE PREMIER LEAGUE</title>
-
+<title>{% if ts %}{{ ts.tournament_name }}{% else %}KPL Auction{% endif %}</title>
 <style>
-
-body{
-    margin:0;
-    font-family:Arial, Helvetica, sans-serif;
-    background-image:url("{% static 'backgrounds/auction_bg.jpg' %}");
-    background-size:cover;
-    background-position:center;
-    background-attachment:fixed;
-    color:white;
-}
-
-.container{
-    width:95%;
-    margin:auto;
-    padding-top:20px;
-}
-
-.header{
-    text-align:center;
-    font-size:40px;
-    font-weight:bold;
-    margin-bottom:20px;
-}
-
-.card{
-    background:rgba(0,0,0,0.65);
-    padding:20px;
-    border-radius:10px;
-}
-
-button{
-    cursor:pointer;
-    border:none;
-}
-
-button:hover{
-    opacity:0.9;
-}
-
-input{
-    padding:8px;
-    font-size:16px;
-}
-
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',Arial,sans-serif;
+    background:#0a0a0a;
+    {% if banner_url %}
+      background-image:url('{{ banner_url }}');
+    {% else %}
+      background-image:url("{% static 'backgrounds/auction_bg.jpg' %}");
+    {% endif %}
+    background-size:cover;background-position:center;background-attachment:fixed;
+    color:#e8e8e8;min-height:100vh;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;
+    background:rgba(0,0,0,0.72);z-index:0;pointer-events:none;
+  }
+  .container{position:relative;z-index:1;width:96%;max-width:1600px;margin:0 auto;padding:16px 0 60px;}
+  .site-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px;margin-bottom:20px;
+    background:linear-gradient(135deg,rgba(20,20,40,0.95),rgba(10,10,20,0.95));
+    border-radius:12px;border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 4px 24px rgba(0,0,0,0.5);
+  }
+  .site-title{font-size:20px;font-weight:800;letter-spacing:2px;
+    background:linear-gradient(90deg,#f39c12,#e74c3c);-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;background-clip:text;}
+  .site-nav{display:flex;gap:16px;align-items:center;}
+  .site-nav a{color:#888;font-size:12px;text-decoration:none;letter-spacing:1px;
+    padding:6px 12px;border-radius:6px;transition:all 0.2s;}
+  .site-nav a:hover{color:#fff;background:rgba(255,255,255,0.08);}
+  .card{
+    background:rgba(12,12,20,0.88);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:12px;padding:20px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  }
+  button{cursor:pointer;border:none;transition:all 0.15s;}
+  button:hover{opacity:0.88;transform:translateY(-1px);}
+  input,select,textarea{
+    background:#0d0d18;color:#e8e8e8;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:6px;padding:9px 12px;font-size:14px;
+    transition:border-color 0.2s;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;border-color:rgba(243,156,18,0.5);
+  }
+  .badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;}
+  .badge-ar  {background:#4a2c00;color:#f39c12;}
+  .badge-bat {background:#0a2a4a;color:#3498db;}
+  .badge-bowl{background:#0a3a1a;color:#2ecc71;}
+  .badge-ply {background:#2a2a2a;color:#aaa;}
+  .role-dot-ar  {display:inline-block;width:8px;height:8px;border-radius:50%;background:#f39c12;}
+  .role-dot-bat {display:inline-block;width:8px;height:8px;border-radius:50%;background:#3498db;}
+  .role-dot-bowl{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ecc71;}
+  .role-dot-ply {display:inline-block;width:8px;height:8px;border-radius:50%;background:#888;}
+  .color-ar  {color:#f39c12;}
+  .color-bat {color:#3498db;}
+  .color-bowl{color:#2ecc71;}
+  .color-ply {color:#aaa;}
+  .btn-primary{background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;
+    font-weight:700;border-radius:8px;padding:12px 28px;font-size:15px;border:none;}
+  .btn-warn{background:linear-gradient(135deg,#e67e22,#d35400);color:#fff;
+    border-radius:8px;padding:12px 24px;font-size:15px;border:none;}
+  .btn-neutral{background:#1e1e2e;color:#aaa;border:1px solid #333;
+    border-radius:8px;padding:10px 20px;font-size:13px;}
+  .btn-danger{background:linear-gradient(135deg,#922,#611);color:#fff;
+    border-radius:8px;padding:10px 20px;font-size:13px;border:none;}
 </style>
-
 </head>
-
-
 <body>
-
 <div class="container">
-
-<div class="header">
-KOLIGE PREMIER LEAGUE
+  <div class="site-header">
+    <div class="site-title">⚡ {% if ts %}{{ ts.tournament_name|upper }}{% else %}AUCTION{% endif %}</div>
+    <nav class="site-nav">
+      <a href="/auction/">Auction</a>
+      <a href="/fixtures/">Fixtures</a>
+      <a href="/auction/summary/">Summary</a>
+      <a href="/jersey/">Jerseys</a>
+      <a href="/auction/upload-csv/">CSV Upload</a>
+      <a href="/auction/banner/">Settings</a>
+      <a href="/admin/" target="_blank">Admin ↗</a>
+    </nav>
+  </div>
+  {% block content %}{% endblock %}
 </div>
-
-{% block content %}
-
-{% endblock %}
-
-</div>
-
 </body>
-
 </html>

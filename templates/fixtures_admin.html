@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+  <div>
+    <h2 style="font-size:20px;font-weight:800;">Fixture Generator</h2>
+    <div style="font-size:11px;color:#555;margin-top:3px;">Spin the wheel to pick teams, or generate all league fixtures at once.</div>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="/fixtures/public/" style="background:rgba(116,169,245,0.15);color:#74a9f5;border:1px solid rgba(116,169,245,0.3);padding:8px 16px;border-radius:6px;font-size:12px;text-decoration:none;">↗ Public View</a>
+  </div>
+</div>
+
+{% if msg %}
+  <div style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);
+    padding:10px 16px;border-radius:6px;font-size:13px;color:#2ecc71;margin-bottom:16px;">
+    ✓ {{ msg }}
+  </div>
+{% endif %}
+
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+
+<!-- ══ LEFT: SPIN WHEEL ════════════════════════════════════ -->
+<div style="flex:0 0 440px;">
+  <div class="card" style="text-align:center;padding:24px;">
+
+    <!-- Wheel canvas -->
+    <div style="position:relative;display:inline-block;margin-bottom:16px;">
+      <!-- Pointer -->
+      <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+        width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;
+        border-top:22px solid #f39c12;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></div>
+      <canvas id="wheel" width="380" height="380"
+        style="border-radius:50%;box-shadow:0 0 40px rgba(0,0,0,0.6),0 0 0 4px rgba(255,255,255,0.06);cursor:pointer;"
+        onclick="spinWheel()"></canvas>
+    </div>
+
+    <!-- Spin button -->
+    <button id="spinBtn" onclick="spinWheel()"
+      style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#000;
+        font-size:16px;font-weight:800;padding:12px 40px;border-radius:8px;
+        letter-spacing:2px;width:100%;margin-bottom:16px;box-shadow:0 4px 16px rgba(243,156,18,0.3);">
+      🎰 SPIN
+    </button>
+
+    <!-- Selection display -->
+    <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">
+        Current Selection
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;">
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">Team 1</div>
+          <div id="team1_display"
+            style="font-size:22px;font-weight:800;color:#f39c12;min-width:90px;
+              background:rgba(243,156,18,0.08);padding:8px 14px;border-radius:8px;
+              border:1px solid rgba(243,156,18,0.2);">
+            ?
+          </div>
+        </div>
+        <div style="font-size:24px;color:#333;font-weight:300;">VS</div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">Team 2</div>
+          <div id="team2_display"
+            style="font-size:22px;font-weight:800;color:#3498db;min-width:90px;
+              background:rgba(52,152,219,0.08);padding:8px 14px;border-radius:8px;
+              border:1px solid rgba(52,152,219,0.2);">
+            ?
+          </div>
+        </div>
+      </div>
+      <div id="spin_hint" style="font-size:11px;color:#555;margin-top:10px;">
+        Spin once for Team 1, spin again for Team 2
+      </div>
+    </div>
+
+    <!-- Match details form (shown after both teams selected) -->
+    <form id="confirm_form" method="POST" style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_match">
+      <input type="hidden" name="team1_id" id="team1_id">
+      <input type="hidden" name="team2_id" id="team2_id">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#555;margin-bottom:4px;text-align:left;">Round</div>
+          <input type="text" name="round_label" value="League" placeholder="League"
+            style="width:100%;padding:8px 10px;font-size:13px;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#555;margin-bottom:4px;text-align:left;">Venue</div>
+          <input type="text" name="venue" placeholder="Ground name"
+            style="width:100%;padding:8px 10px;font-size:13px;">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;color:#555;margin-bottom:4px;text-align:left;">Date &amp; Time</div>
+        <input type="datetime-local" name="scheduled_date" style="width:100%;padding:8px 10px;">
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button type="submit"
+          style="flex:1;background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;
+            font-size:14px;font-weight:700;padding:11px;border-radius:7px;">
+          ✔ Confirm Match
+        </button>
+        <button type="button" onclick="resetSpin()"
+          style="background:#1e1e2e;color:#aaa;border:1px solid #333;
+            font-size:13px;padding:11px 16px;border-radius:7px;">
+          Reset
+        </button>
+      </div>
+    </form>
+
+    <!-- Reset button when no match confirmed -->
+    <button id="reset_btn" onclick="resetSpin()" style="display:none;
+      background:#1e1e2e;color:#888;border:1px solid #333;width:100%;padding:9px;border-radius:6px;font-size:13px;">
+      ↺ Reset Spin
+    </button>
+
+  </div>
+
+  <!-- Generate All (round-robin) -->
+  <div class="card" style="margin-top:14px;padding:18px;">
+    <div style="font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+      Auto-Generate All Fixtures
+    </div>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="generate_all">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#555;margin-bottom:4px;">Round</div>
+          <input type="text" name="round_label" value="League" style="width:100%;padding:7px 10px;">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#555;margin-bottom:4px;">Venue</div>
+          <input type="text" name="venue" placeholder="Optional" style="width:100%;padding:7px 10px;">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;color:#555;margin-bottom:4px;">Start Date</div>
+        <input type="datetime-local" name="scheduled_date" style="width:100%;padding:7px 10px;">
+      </div>
+      <div style="font-size:11px;color:#555;margin-bottom:10px;">
+        Creates {{ teams|length }} × ({{ teams|length }}-1) ÷ 2 =
+        <b style="color:#f39c12;">{{ teams|length }}</b> team round-robin
+        — every team plays every other team once.
+      </div>
+      <button type="submit"
+        onclick="return confirm('Generate full round-robin? This will skip any existing pairings.')"
+        style="width:100%;background:linear-gradient(135deg,#2980b9,#1a6090);color:#fff;
+          padding:10px;border-radius:7px;font-size:13px;font-weight:700;">
+        ⚡ Generate All League Fixtures
+      </button>
+    </form>
+
+    {% if matches %}
+    <form method="POST" style="margin-top:8px;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="clear_all">
+      <button type="submit"
+        onclick="return confirm('Delete ALL matches? This cannot be undone.')"
+        style="width:100%;background:#1a0808;color:#c0392b;border:1px solid #2a0808;
+          padding:8px;border-radius:6px;font-size:12px;margin-top:4px;">
+        ✕ Clear All Matches
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+
+<!-- ══ RIGHT: MATCH LIST + POINTS TABLE ════════════════════ -->
+<div style="flex:1;min-width:320px;">
+
+  <!-- Points Table -->
+  {% if points %}
+  <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden;">
+    <div style="background:rgba(255,255,255,0.04);padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:14px;font-weight:700;">Points Table</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:rgba(255,255,255,0.02);">
+          <th style="padding:8px 14px;font-size:9px;color:#444;text-align:left;text-transform:uppercase;letter-spacing:1px;">#</th>
+          <th style="padding:8px 14px;font-size:9px;color:#444;text-align:left;text-transform:uppercase;letter-spacing:1px;">Team</th>
+          <th style="padding:8px 8px;font-size:9px;color:#444;text-align:center;text-transform:uppercase;letter-spacing:1px;">P</th>
+          <th style="padding:8px 8px;font-size:9px;color:#444;text-align:center;text-transform:uppercase;letter-spacing:1px;">W</th>
+          <th style="padding:8px 8px;font-size:9px;color:#444;text-align:center;text-transform:uppercase;letter-spacing:1px;">L</th>
+          <th style="padding:8px 12px;font-size:9px;color:#f39c12;text-align:center;text-transform:uppercase;letter-spacing:1px;">Pts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in points %}
+        <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+          <td style="padding:8px 14px;font-size:12px;color:#555;">{{ forloop.counter }}</td>
+          <td style="padding:8px 14px;font-size:13px;font-weight:600;">{{ row.team.name }}</td>
+          <td style="padding:8px 8px;text-align:center;font-size:12px;color:#aaa;">{{ row.played }}</td>
+          <td style="padding:8px 8px;text-align:center;font-size:12px;color:#2ecc71;">{{ row.won }}</td>
+          <td style="padding:8px 8px;text-align:center;font-size:12px;color:#e74c3c;">{{ row.lost }}</td>
+          <td style="padding:8px 12px;text-align:center;font-size:15px;font-weight:800;color:#f39c12;">{{ row.points }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Match List -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="background:rgba(255,255,255,0.04);padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:14px;font-weight:700;">Matches <span style="color:#555;font-size:12px;font-weight:400;">({{ matches|length }})</span></span>
+    </div>
+
+    {% if matches %}
+    <div style="max-height:520px;overflow-y:auto;">
+    {% for m in matches %}
+    <div style="border-top:1px solid rgba(255,255,255,0.04);padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+
+        <!-- Match badge -->
+        <div style="background:rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;
+          font-size:10px;color:#555;font-weight:700;min-width:30px;text-align:center;">
+          M{{ m.match_number }}
+        </div>
+
+        <!-- Teams -->
+        <div style="flex:1;min-width:180px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:14px;font-weight:700;
+              {% if m.winner == m.team1 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#888;{% else %}color:#ddd;{% endif %}">
+              {{ m.team1.name }}
+            </span>
+            <span style="font-size:11px;color:#444;">vs</span>
+            <span style="font-size:14px;font-weight:700;
+              {% if m.winner == m.team2 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#888;{% else %}color:#ddd;{% endif %}">
+              {{ m.team2.name }}
+            </span>
+          </div>
+          <div style="font-size:10px;color:#555;margin-top:3px;">
+            {{ m.round_label }}
+            {% if m.venue %} · {{ m.venue }}{% endif %}
+            {% if m.scheduled_date %} · {{ m.scheduled_date|date:"d M, H:i" }}{% endif %}
+          </div>
+          {% if m.status == "COMPLETED" %}
+            <div style="font-size:11px;margin-top:3px;">
+              {% if m.winner %}
+                <span style="color:#2ecc71;">🏆 {{ m.winner.name }} won</span>
+              {% else %}
+                <span style="color:#888;">No result / Draw</span>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Status + actions -->
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          {% if m.status == "SCHEDULED" %}
+            <span style="background:rgba(52,152,219,0.15);color:#3498db;
+              padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;">UPCOMING</span>
+          {% elif m.status == "COMPLETED" %}
+            <span style="background:rgba(39,174,96,0.15);color:#2ecc71;
+              padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;">DONE</span>
+          {% endif %}
+
+          <!-- Result button -->
+          <button onclick="openResult({{ m.pk }}, '{{ m.team1.name|escapejs }}', {{ m.team1.team_serial_number }}, '{{ m.team2.name|escapejs }}', {{ m.team2.team_serial_number }})"
+            style="background:rgba(243,156,18,0.1);color:#f39c12;border:1px solid rgba(243,156,18,0.3);
+              padding:4px 10px;border-radius:4px;font-size:11px;">
+            {% if m.status == "COMPLETED" %}Edit{% else %}Result{% endif %}
+          </button>
+
+          <!-- Delete -->
+          <form method="POST" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_match">
+            <input type="hidden" name="match_id" value="{{ m.pk }}">
+            <button type="submit" onclick="return confirm('Delete M{{ m.match_number }}?')"
+              style="background:#1a0808;color:#c0392b;border:1px solid #2a0808;
+                padding:4px 8px;border-radius:4px;font-size:11px;">✕</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding:48px;text-align:center;color:#333;font-size:13px;">
+      No matches yet. Use the spin wheel or Generate All.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+</div><!-- end flex -->
+
+
+<!-- ══ RESULT MODAL ══════════════════════════════════════════ -->
+<div id="result_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);
+  z-index:200;align-items:center;justify-content:center;">
+  <div class="card" style="max-width:380px;width:90%;padding:28px;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Record Result</div>
+    <div id="result_match_label" style="font-size:13px;color:#888;margin-bottom:20px;"></div>
+    <form method="POST" id="result_form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="record_result">
+      <input type="hidden" name="match_id" id="result_match_id">
+      <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Winner</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <label id="result_t1_label" style="display:flex;align-items:center;gap:10px;cursor:pointer;
+          background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:7px;border:1px solid #222;">
+          <input type="radio" name="winner_id" id="result_t1_radio" style="accent-color:#2ecc71;">
+          <span id="result_t1_name" style="font-size:14px;font-weight:600;"></span>
+        </label>
+        <label id="result_t2_label" style="display:flex;align-items:center;gap:10px;cursor:pointer;
+          background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:7px;border:1px solid #222;">
+          <input type="radio" name="winner_id" id="result_t2_radio" style="accent-color:#2ecc71;">
+          <span id="result_t2_name" style="font-size:14px;font-weight:600;"></span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;
+          background:rgba(255,255,255,0.04);padding:10px 14px;border-radius:7px;border:1px solid #222;">
+          <input type="radio" name="winner_id" value="draw" style="accent-color:#888;">
+          <span style="font-size:14px;color:#888;">No result / Draw</span>
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn-primary" style="flex:1;padding:11px;font-size:14px;">Save Result</button>
+        <button type="button" onclick="closeResult()"
+          class="btn-neutral" style="padding:11px 16px;font-size:13px;">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══ SCRIPTS ════════════════════════════════════════════════ -->
+<script>
+// ── Team data from Django ──
+const TEAMS = [
+  {% for t in teams %}
+  { id: {{ t.team_serial_number }}, name: "{{ t.name|escapejs }}", short: "{{ t.get_short|escapejs }}", color: "{{ t.wheel_color }}" },
+  {% endfor %}
+];
+
+// ── Wheel state ──
+let spinPhase   = 1;   // 1 = picking team1, 2 = picking team2
+let team1Data   = null;
+let team2Data   = null;
+let spinning    = false;
+let currentAngle = 0;
+let animId      = null;
+
+// ── Draw wheel ──
+function drawWheel(angle) {
+  const canvas = document.getElementById("wheel");
+  const ctx    = canvas.getContext("2d");
+  const cx     = canvas.width  / 2;
+  const cy     = canvas.height / 2;
+  const r      = cx - 4;
+  const n      = TEAMS.length;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (n === 0) {
+    ctx.fillStyle = "#333";
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#888"; ctx.font = "16px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("No teams", cx, cy);
+    return;
+  }
+
+  const slice = (Math.PI * 2) / n;
+
+  TEAMS.forEach((team, i) => {
+    const start = angle + i * slice;
+    const end   = start + slice;
+
+    // Segment
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = team.color;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+
+    // Label
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + slice / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = `bold ${n > 8 ? 11 : 13}px 'Segoe UI', sans-serif`;
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur  = 4;
+    ctx.fillText(team.short, r - 12, 5);
+    ctx.restore();
+  });
+
+  // Centre circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+  ctx.fillStyle = "#0a0a14";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.1)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Phase indicator in centre
+  ctx.fillStyle = spinPhase === 1 ? "#f39c12" : "#3498db";
+  ctx.font = "bold 13px 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("T" + spinPhase, cx, cy + 5);
+}
+
+// ── Spin ──
+function spinWheel() {
+  if (spinning) return;
+  if (TEAMS.length < 2) { alert("Need at least 2 teams."); return; }
+  if (spinPhase > 2) return;
+
+  spinning = true;
+  document.getElementById("spinBtn").disabled = true;
+
+  const extraSpins   = 5 + Math.random() * 5;
+  const targetAngle  = currentAngle + extraSpins * Math.PI * 2 + Math.random() * Math.PI * 2;
+  const duration     = 3000 + Math.random() * 1000;
+  const startAngle   = currentAngle;
+  const startTime    = performance.now();
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function frame(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    currentAngle = startAngle + (targetAngle - startAngle) * easeOut(progress);
+    drawWheel(currentAngle);
+
+    if (progress < 1) {
+      animId = requestAnimationFrame(frame);
+    } else {
+      spinning = false;
+      currentAngle = currentAngle % (Math.PI * 2);
+      landOnTeam();
+    }
+  }
+  animId = requestAnimationFrame(frame);
+}
+
+// ── Determine which team the pointer landed on ──
+function landOnTeam() {
+  const n     = TEAMS.length;
+  const slice = (Math.PI * 2) / n;
+
+  // Pointer points down from top = angle 3π/2 relative to canvas
+  // Wheel rotates by currentAngle, so effective pointer position in wheel space:
+  const pointer = (3 * Math.PI / 2 - currentAngle + Math.PI * 100) % (Math.PI * 2);
+  const idx     = Math.floor(pointer / slice) % n;
+  const team    = TEAMS[idx];
+
+  document.getElementById("spinBtn").disabled = false;
+
+  // Exclude already-picked team for second spin
+  const excluded = (spinPhase === 2 && team1Data && team.id === team1Data.id);
+  if (excluded) {
+    // Re-spin automatically
+    spinWheel();
+    return;
+  }
+
+  if (spinPhase === 1) {
+    team1Data = team;
+    document.getElementById("team1_display").innerText = team.short;
+    document.getElementById("team1_display").style.color = team.color;
+    document.getElementById("spin_hint").innerText = "Now spin for Team 2!";
+    document.getElementById("reset_btn").style.display = "block";
+    spinPhase = 2;
+    drawWheel(currentAngle); // redraw to update centre label
+
+  } else if (spinPhase === 2) {
+    team2Data = team;
+    document.getElementById("team2_display").innerText = team.short;
+    document.getElementById("team2_display").style.color = team.color;
+    document.getElementById("team1_id").value = team1Data.id;
+    document.getElementById("team2_id").value = team2Data.id;
+    document.getElementById("spin_hint").innerText =
+      team1Data.name + " vs " + team2Data.name + " — confirm or reset below.";
+    document.getElementById("confirm_form").style.display = "block";
+    document.getElementById("reset_btn").style.display = "none";
+    document.getElementById("spinBtn").disabled = true;
+    spinPhase = 3;
+  }
+}
+
+// ── Reset spin ──
+function resetSpin() {
+  team1Data = null; team2Data = null; spinPhase = 1;
+  document.getElementById("team1_display").innerText = "?";
+  document.getElementById("team1_display").style.color = "#f39c12";
+  document.getElementById("team2_display").innerText = "?";
+  document.getElementById("team2_display").style.color = "#3498db";
+  document.getElementById("spin_hint").innerText = "Spin once for Team 1, spin again for Team 2";
+  document.getElementById("confirm_form").style.display = "none";
+  document.getElementById("reset_btn").style.display  = "none";
+  document.getElementById("spinBtn").disabled = false;
+  drawWheel(currentAngle);
+}
+
+// ── Result modal ──
+function openResult(matchId, t1Name, t1Id, t2Name, t2Id) {
+  document.getElementById("result_match_id").value     = matchId;
+  document.getElementById("result_match_label").innerText = t1Name + " vs " + t2Name;
+  document.getElementById("result_t1_name").innerText  = t1Name;
+  document.getElementById("result_t1_radio").value     = t1Id;
+  document.getElementById("result_t2_name").innerText  = t2Name;
+  document.getElementById("result_t2_radio").value     = t2Id;
+  document.getElementById("result_modal").style.display = "flex";
+}
+function closeResult() {
+  document.getElementById("result_modal").style.display = "none";
+}
+document.getElementById("result_modal").addEventListener("click", function(e) {
+  if (e.target === this) closeResult();
+});
+
+// ── Init ──
+drawWheel(0);
+</script>
+
+{% endblock %}

@@ -1,196 +1,342 @@
 {% extends "base.html" %}
-
 {% block content %}
 
-<h1 style="text-align:center;font-size:36px;">
-KOLIGE PREMIER LEAGUE
-</h1>
+<!-- ══ STATUS BAR ══════════════════════════════════════════════ -->
+<div style="display:flex;justify-content:space-between;align-items:center;
+  background:rgba(8,8,18,0.92);padding:12px 20px;border-radius:10px;margin-bottom:16px;
+  border:1px solid rgba(255,255,255,0.07);">
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+
+    {% if state.phase == "MAIN" %}
+      <span style="background:linear-gradient(135deg,#1a5c38,#0d3d24);color:#2ecc71;
+        padding:5px 14px;border-radius:6px;font-size:12px;font-weight:800;letter-spacing:1px;">
+        MAIN ROUND
+      </span>
+    {% elif state.phase == "REBID" %}
+      <span style="background:linear-gradient(135deg,#6b3800,#4a2500);color:#f39c12;
+        padding:5px 14px;border-radius:6px;font-size:12px;font-weight:800;letter-spacing:1px;">
+        REBID ROUND
+      </span>
+    {% endif %}
+
+    <span style="background:rgba(28,46,92,0.9);color:#74a9f5;
+      padding:5px 18px;border-radius:6px;font-size:15px;font-weight:800;letter-spacing:2px;">
+      {{ current_round_label }}
+    </span>
+
+    {% if category_base_price %}
+      <span style="color:#555;">│</span>
+      <span style="font-size:12px;color:#888;">
+        Base: <b style="color:#f39c12;">{{ category_base_price }}</b>
+      </span>
+    {% endif %}
+
+    <span style="color:#444;">│</span>
+    <span style="font-size:12px;color:#666;">Round {{ state.auction_round }}</span>
+
+    <!-- Player pool count (item 21) -->
+    {% if available_count or unsold_count %}
+      <span style="color:#444;">│</span>
+      {% if state.phase == "MAIN" %}
+        <span style="font-size:12px;color:#888;">Available: <b style="color:#2ecc71;">{{ available_count }}</b></span>
+      {% else %}
+        <span style="font-size:12px;color:#888;">Rebid pool: <b style="color:#f39c12;">{{ unsold_count }}</b></span>
+      {% endif %}
+    {% endif %}
+
+  </div>
+
+  <div style="display:flex;gap:14px;align-items:center;">
+    <a href="/auction/upload-csv/" style="color:#666;font-size:11px;text-decoration:none;">CSV</a>
+    <a href="/auction/audit-log/"  style="color:#666;font-size:11px;text-decoration:none;">Audit</a>
+    <a href="/auction/undo/"       style="color:#e67e22;font-size:12px;text-decoration:none;">↩ Undo</a>
+  </div>
+</div>
 
 
-<div style="display:flex;gap:40px;margin-top:30px;">
-
-
-<!-- PLAYER CARD -->
-
-<div style="width:40%;padding:20px;background:#111;color:white;border-radius:10px;">
-
-{% if player %}
-
-<h2 style="font-size:28px;">{{ player.name }}</h2>
-
-<p>Role: {{ player.role }}</p>
-<p>Place: {{ player.place }}</p>
-
-<p>Base Price: {{ player.base_price }}</p>
-
-<br>
-
-<label>Bid Amount</label><br>
-
-<input id="bid_amount"
-       value="{{ player.base_price }}"
-       style="padding:8px;font-size:16px;width:150px;">
-
-<button onclick="increaseBid()">▲</button>
-<button onclick="decreaseBid()">▼</button>
-
-<br><br>
-
-<p>Selected Team: <b id="selected_team">None</b></p>
-
-{% else %}
-
-<h2>No Players Remaining</h2>
-
+<!-- ══ TRANSITION BANNER (item 4) ═════════════════════════════ -->
+{% if state.awaiting_transition %}
+<div style="background:linear-gradient(135deg,rgba(20,40,80,0.97),rgba(10,20,50,0.97));
+  border:1px solid rgba(116,169,245,0.3);border-radius:12px;padding:32px;
+  text-align:center;margin-bottom:16px;box-shadow:0 8px 32px rgba(0,0,50,0.5);">
+  <div style="font-size:13px;color:#74a9f5;text-transform:uppercase;letter-spacing:3px;margin-bottom:12px;">
+    Round Transition
+  </div>
+  <div style="font-size:26px;font-weight:800;color:#fff;margin-bottom:20px;">
+    {{ state.transition_message }}
+  </div>
+  <a href="/auction/continue/"
+    style="display:inline-block;background:linear-gradient(135deg,#27ae60,#1e8449);
+      color:#fff;font-size:16px;font-weight:700;padding:14px 48px;
+      border-radius:8px;text-decoration:none;letter-spacing:1px;">
+    ▶ Start Round
+  </a>
+</div>
 {% endif %}
 
+
+{% if not state.awaiting_transition %}
+<div style="display:flex;gap:16px;">
+
+<!-- ══ PLAYER CARD ════════════════════════════════════════════ -->
+<div class="card" style="width:36%;min-height:320px;position:relative;">
+
+  {% if player %}
+
+    <!-- Role badge -->
+    {% if player.role == "AR" %}
+      <span class="badge badge-ar" style="margin-bottom:10px;">ALL ROUNDER</span>
+    {% elif player.role == "BAT" %}
+      <span class="badge badge-bat" style="margin-bottom:10px;">BATSMAN</span>
+    {% elif player.role == "BOWL" %}
+      <span class="badge badge-bowl" style="margin-bottom:10px;">BOWLER</span>
+    {% else %}
+      <span class="badge badge-ply" style="margin-bottom:10px;">PLAYER</span>
+    {% endif %}
+
+    <div style="font-size:11px;color:#444;margin-top:8px;margin-bottom:2px;">#{{ player.serial_number }}</div>
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:4px;
+      {% if player.role == 'AR' %}color:#f39c12;{% elif player.role == 'BAT' %}color:#3498db;
+      {% elif player.role == 'BOWL' %}color:#2ecc71;{% else %}color:#ccc;{% endif %}">
+      {{ player.name }}
+    </h2>
+    <div style="color:#666;font-size:13px;margin-bottom:16px;">{{ player.place }}</div>
+
+    {% if player.rebid_count > 0 %}
+      <div style="background:rgba(74,40,0,0.8);border:1px solid rgba(243,156,18,0.4);
+        padding:7px 14px;border-radius:7px;font-size:12px;color:#f39c12;margin-bottom:14px;">
+        ⚠ Rebid attempt {{ player.rebid_count }}
+      </div>
+    {% endif %}
+
+    <!-- Bid input -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Bid Amount</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="decreaseBid()"
+          style="width:38px;height:38px;background:#1a1a2e;color:#aaa;font-size:20px;border-radius:6px;border:1px solid #333;">−</button>
+        <input id="bid_amount" type="number" value="{{ player.base_price }}"
+          style="width:110px;text-align:center;font-size:24px;font-weight:700;padding:6px;">
+        <button onclick="increaseBid()"
+          style="width:38px;height:38px;background:#1a1a2e;color:#aaa;font-size:20px;border-radius:6px;border:1px solid #333;">+</button>
+      </div>
+    </div>
+
+    <div style="font-size:13px;">
+      Bidding: <b id="selected_team_name" style="color:#f39c12;">None selected</b>
+    </div>
+
+  {% elif pool_exhausted %}
+    <div style="text-align:center;padding:40px 0;">
+      <div style="font-size:44px;margin-bottom:12px;">⏸</div>
+      <div style="font-size:16px;color:#f39c12;font-weight:700;">Pool Exhausted</div>
+      <div style="color:#666;margin-top:10px;font-size:12px;line-height:1.8;">
+        Add players via<br>
+        <a href="/admin/auction/player/add/" target="_blank" style="color:#3498db;">
+          Django Admin → Add Player
+        </a><br>
+        then refresh this page.
+      </div>
+    </div>
+
+  {% else %}
+    <div style="text-align:center;padding:50px 0;">
+      <div style="font-size:40px;margin-bottom:12px;">⏳</div>
+      <div style="color:#555;font-size:13px;">Waiting...</div>
+    </div>
+  {% endif %}
+
 </div>
 
 
+<!-- ══ TEAM GRID ══════════════════════════════════════════════ -->
+<div style="flex:1;">
 
-<!-- TEAM GRID -->
+  {% if state.phase == "MAIN" and state.category_pass == 1 %}
+    <div style="font-size:10px;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">
+      Select Team
+      &nbsp;<span style="color:#c0392b;">● Greyed = already has {{ state.current_category }} this pass</span>
+    </div>
+  {% else %}
+    <div style="font-size:10px;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Select Team</div>
+  {% endif %}
 
-<div style="width:60%;">
-
-<h3>Teams</h3>
-
-<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
-
-{% for team in teams %}
-
-<button
-class="team-button"
-onclick="selectTeam({{ team.team_serial_number }}, this)"
-style="padding:12px;font-weight:bold;border-radius:6px;">
-
-{{ team.short }} <br>
-{{ team.remaining_points }}
-
-</button>
-
-{% endfor %}
-
-</div>
-
-</div>
-
-</div>
-
-
-
-<!-- ACTION BUTTONS -->
-
-{% if player %}
-
-<div style="margin-top:30px;">
-
-<button onclick="sellPlayer()" style="padding:12px;background:green;color:white;">
-SELL
-</button>
-
-<button onclick="unsoldPlayer()" style="padding:12px;margin-left:10px;">
-UNSOLD
-</button>
-
-<button onclick="notPlaying()" style="padding:12px;margin-left:10px;">
-NOT PLAYING
-</button>
-
-<a href="/auction/undo/" style="margin-left:20px;">
-Undo Last Action
-</a>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">
+    {% for team in teams %}
+      {% if team.is_blocked %}
+        <div style="padding:10px 6px;border-radius:8px;background:#060610;border:1px solid #111;
+          text-align:center;opacity:0.28;font-size:12px;font-weight:700;line-height:1.7;
+          color:#444;cursor:not-allowed;">
+          {{ team.display_short }}<br>
+          <span style="font-size:10px;">{{ team.remaining_points }}</span><br>
+          <span style="font-size:9px;color:#333;">{{ team.slots_left }} slots</span>
+        </div>
+      {% else %}
+        <button class="team-btn"
+          title="{{ team.name }}"
+          onclick="selectTeam({{ team.team_serial_number }}, '{{ team.name }}', this)"
+          style="padding:10px 6px;border-radius:8px;background:#0d0d1a;color:#ccc;
+            font-size:12px;font-weight:700;line-height:1.7;border:1px solid #222;
+            text-align:center;">
+          {{ team.display_short }}<br>
+          <span style="font-size:10px;color:#888;">{{ team.remaining_points }}</span><br>
+          <span style="font-size:9px;color:#{{ team.slots_left|default:'0' }}55;">{{ team.slots_left }} slots</span>
+        </button>
+      {% endif %}
+    {% endfor %}
+  </div>
 
 </div>
 
-{% endif %}
+</div><!-- end flex -->
 
+
+<!-- ══ ACTION BUTTONS ═════════════════════════════════════════ -->
+<div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+
+  {% if player %}
+    <button onclick="sellPlayer()" class="btn-primary">✔ SELL</button>
+    <button onclick="unsoldPlayer()" class="btn-warn">UNSOLD</button>
+    <button onclick="notPlaying()" class="btn-neutral">NOT PLAYING</button>
+  {% endif %}
+  {% if not pool_exhausted and not state.awaiting_transition %}
+    <a href="/auction/next/" class="btn-neutral" style="text-decoration:none;">▶ Next Player</a>
+  {% endif %}
+  {% if pool_exhausted %}
+    <a href="/auction/" class="btn-neutral" style="text-decoration:none;">↺ Refresh</a>
+  {% endif %}
+
+  <!-- Error / validation message (item 8) -->
+  <div id="msg" style="font-size:13px;color:#e74c3c;margin-left:8px;display:none;
+    background:rgba(192,57,43,0.15);border:1px solid rgba(192,57,43,0.4);
+    padding:8px 16px;border-radius:6px;max-width:420px;">
+    <span id="msg_text"></span>
+    <span id="force_btns" style="display:none;margin-left:12px;">
+      <button onclick="dismissError()"
+        style="background:#2a2a2a;color:#aaa;padding:4px 12px;border-radius:4px;font-size:12px;margin-right:6px;">
+        Continue
+      </button>
+      <button onclick="forceSell()"
+        style="background:rgba(192,57,43,0.8);color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:700;">
+        Force Sell
+      </button>
+    </span>
+  </div>
+
+</div>
+{% endif %}{# end not awaiting_transition #}
+
+
+<!-- ══ BOTTOM BAR ══════════════════════════════════════════════ -->
+<div style="position:fixed;bottom:0;left:0;right:0;padding:10px 24px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(4,4,10,0.95);border-top:1px solid #111;z-index:100;">
+
+  <!-- Refresh (item 9) — bottom left, subtle -->
+  <button onclick="refreshPoints()"
+    style="background:transparent;color:#444;font-size:11px;padding:4px 10px;
+    border-radius:4px;border:1px solid #222;">
+    ↺ Refresh
+  </button>
+
+  <!-- Complete Auction — bottom right, subtle (item 9 move) -->
+  <a href="/auction/complete/"
+    onclick="return confirm('Mark auction as COMPLETE?\n\nBidding will stop and final summary will show.')"
+    style="color:#444;font-size:11px;text-decoration:none;">
+    ■ Complete Auction
+  </a>
+
+</div>
+
+
+<!-- Extra player dialog (item 20) -->
+<div id="extra_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:200;align-items:center;justify-content:center;">
+  <div class="card" style="max-width:400px;text-align:center;padding:32px;">
+    <div style="font-size:18px;font-weight:700;margin-bottom:12px;">⚠ Team Slots Full</div>
+    <div id="extra_msg" style="color:#888;font-size:13px;margin-bottom:24px;"></div>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button onclick="skipExtra()" class="btn-neutral">Skip (Cancel)</button>
+      <button onclick="forceExtra()" class="btn-warn">Force Add</button>
+    </div>
+  </div>
+</div>
 
 
 <script>
-
-let increment = {{ increment|default:100 }}
-
-let selectedTeam = null
-
+const increment  = {{ increment|default:100 }};
+const basePrice  = {{ player.base_price|default:0 }};
+const playerId   = {{ player.serial_number|default:0 }};
+let   selectedTeamId   = null;
+let   pendingExtraTeam = null;
+let   pendingAmount    = null;
 
 function increaseBid(){
-
-let input = document.getElementById("bid_amount")
-
-input.value = parseInt(input.value) + increment
-
+  let inp=document.getElementById("bid_amount");
+  if(inp) inp.value=parseInt(inp.value)+increment;
 }
-
-
 function decreaseBid(){
-
-let input = document.getElementById("bid_amount")
-
-input.value = Math.max(0, parseInt(input.value) - increment)
-
+  let inp=document.getElementById("bid_amount");
+  if(inp) inp.value=Math.max(basePrice,parseInt(inp.value)-increment);
 }
-
-
-function selectTeam(teamId, btn){
-
-selectedTeam = teamId
-
-let name = btn.innerText.split("\n")[0]
-
-document.getElementById("selected_team").innerText = name
-
-document.querySelectorAll(".team-button").forEach(b => {
-b.style.border = "none"
-})
-
-btn.style.border = "3px solid yellow"
-
+function selectTeam(id,name,btn){
+  selectedTeamId=id;
+  document.getElementById("selected_team_name").innerText=name;
+  document.querySelectorAll(".team-btn").forEach(b=>{
+    b.style.border="1px solid #222";b.style.background="#0d0d1a";
+  });
+  btn.style.border="2px solid #f39c12";btn.style.background="#1a1000";
 }
-
-
-function sellPlayer(){
-
-if(!selectedTeam){
-alert("Select a team first")
-return
+function showError(msg,allowForce){
+  const el=document.getElementById("msg");
+  document.getElementById("msg_text").innerText=msg;
+  document.getElementById("force_btns").style.display=allowForce?"inline":"none";
+  el.style.display="block";
 }
-
-let amount = document.getElementById("bid_amount").value
-
-fetch("/auction/sell/",{
-method:"POST",
-headers:{'Content-Type':'application/x-www-form-urlencoded'},
-body:`player_id={{ player.serial_number }}&team_id=${selectedTeam}&amount=${amount}`
-})
-.then(()=>location.reload())
-
+function dismissError(){
+  document.getElementById("msg").style.display="none";
 }
-
-
+function doSell(extra,force){
+  if(!selectedTeamId){showError("Select a team first",false);return;}
+  const amount=document.getElementById("bid_amount")?document.getElementById("bid_amount").value:pendingAmount;
+  fetch("/auction/sell/",{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:`player_id=${playerId}&team_id=${selectedTeamId}&amount=${amount}`
+      +(extra?"&extra=true":"")+(force?"&force=true":"")
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.status==="ok"){location.reload();}
+    else if(d.status==="confirm_extra"){
+      document.getElementById("extra_msg").innerText=
+        `${d.team_name} already has ${d.squad_count} players (max ${d.max_slots} slots). Add as extra?`;
+      pendingExtraTeam=selectedTeamId;
+      pendingAmount=document.getElementById("bid_amount")?document.getElementById("bid_amount").value:amount;
+      document.getElementById("extra_modal").style.display="flex";
+    }
+    else{showError(d.message||"Error",d.allow_force||false);}
+  });
+}
+function sellPlayer(){doSell(false,false);}
+function forceSell(){document.getElementById("msg").style.display="none";doSell(false,true);}
+function skipExtra(){document.getElementById("extra_modal").style.display="none";}
+function forceExtra(){document.getElementById("extra_modal").style.display="none";doSell(true,false);}
 function unsoldPlayer(){
-
-fetch("/auction/unsold/",{
-method:"POST",
-headers:{'Content-Type':'application/x-www-form-urlencoded'},
-body:`player_id={{ player.serial_number }}`
-})
-.then(()=>location.reload())
-
+  fetch("/auction/unsold/",{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:`player_id=${playerId}`}).then(()=>location.reload());
 }
-
-
 function notPlaying(){
-
-fetch("/auction/not-playing/",{
-method:"POST",
-headers:{'Content-Type':'application/x-www-form-urlencoded'},
-body:`player_id={{ player.serial_number }}`
-})
-.then(()=>location.reload())
-
+  if(!confirm("Mark {{ player.name|default:'this player' }} as NOT PLAYING?\nPermanently removes from auction."))return;
+  fetch("/auction/not-playing/",{method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:`player_id=${playerId}`}).then(()=>location.reload());
 }
-
+function refreshPoints(){
+  fetch("/auction/refresh/",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:""})
+  .then(()=>{location.reload();});
+}
 </script>
-
 
 {% endblock %}
