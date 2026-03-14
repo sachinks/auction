@@ -9,7 +9,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    '*',
+    'auction-hyfq.onrender.com',
+]
 
 INSTALLED_APPS = [
 'django.contrib.admin',
@@ -67,3 +70,7 @@ LOGIN_URL = '/admin/login/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://auction-hyfq.onrender.com',
+]
