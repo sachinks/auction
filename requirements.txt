@@ -1,4 +1,7 @@
-
 Django>=4.2
-pytest
+gunicorn
+whitenoise
 reportlab
+Pillow
+dj-database-url
+psycopg2-binary
