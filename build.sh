@@ -10,15 +10,18 @@ python manage.py collectstatic --no-input
 echo "── Running migrations ───────────────────────────"
 python manage.py migrate
 
-echo "── Creating superuser (sk/kpl2025) ──────────────"
+echo "── Creating superuser ───────────────────────────"
 python manage.py shell -c "
-from django.contrib.auth.models import User
 import os
-if not User.objects.filter(username='sk').exists():
-    User.objects.create_superuser('sk', 'sk@kpl.local', 'kpl2025')
-    print('Superuser sk created')
-else:
-    print('Superuser sk already exists')
+from django.contrib.auth.models import User
+username = os.environ.get('ADMIN_USERNAME', 'sk')
+password = os.environ.get('ADMIN_PASSWORD', 'kpl2025')
+user, created = User.objects.get_or_create(username=username)
+user.set_password(password)
+user.is_staff = True
+user.is_superuser = True
+user.save()
+print(f'Superuser {username} ready')
 "
 
 echo "── Ensuring logs directory ──────────────────────"

@@ -1,12 +1,16 @@
 """
 Django settings for KPL Auction Engine.
 
-Local:  DEBUG=True, SQLite, console logging
+Local:  DEBUG=True, SQLite, console logging — values read from .env
 Render: set RENDER=true env var → DEBUG=False, WhiteNoise, allowed hosts
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
 import os
+
+# Load .env file (ignored on Render — env vars set in dashboard)
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
