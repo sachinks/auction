@@ -1,11 +1,4 @@
 """
-Root conftest.py — configures Django before pytest collects tests.
+Root conftest.py — ensures Django is configured before pytest collects tests.
+DJANGO_SETTINGS_MODULE is read from pytest.ini.
 """
-import django
-from django.conf import settings
-
-
-def pytest_configure(config):
-    """Called by pytest before collection — ensure Django is set up."""
-    if not settings.configured:
-        settings.configure()

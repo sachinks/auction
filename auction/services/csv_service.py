@@ -1,89 +1,155 @@
+"""
+csv_service.py
+──────────────
+Player and Team CSV import with validate-only (dry-run) mode.
+"""
 import csv
 import re
+import logging
+import traceback
 
-from auction.models import Player
+from auction.models import Player, Team
+
+logger = logging.getLogger("system")
 
 
 class CSVService:
 
-
     REQUIRED_COLUMNS = ["name", "role", "phone", "place"]
-
-    VALID_ROLES = ["BAT", "BOWL", "AR", "PLY"]
-
-
-    # -------------------------------------------------
-    # VALIDATE PHONE
-    # -------------------------------------------------
+    VALID_ROLES      = ["BAT", "BOWL", "AR", "PLY"]
 
     def valid_phone(self, phone):
+        return re.match(r"^\+?[0-9]{10,12}$", phone)
 
-        pattern = r"^\+?[0-9]{10,12}$"
+    # ─────────────────────────────────────────────
+    # Players CSV
+    # ─────────────────────────────────────────────
 
-        return re.match(pattern, phone)
-
-
-    # -------------------------------------------------
-    # IMPORT PLAYERS FROM CSV
-    # -------------------------------------------------
+    def validate_players_csv(self, filepath):
+        logger.info(f"validate_players_csv: dry-run on {filepath}")
+        return self._process_players_csv(filepath, dry_run=True)
 
     def import_players(self, filepath):
+        logger.info(f"import_players: importing from {filepath}")
+        return self._process_players_csv(filepath, dry_run=False)
 
+    def _process_players_csv(self, filepath, dry_run=False):
         created = 0
-        errors = []
+        errors  = []
+        mode    = "DRY-RUN" if dry_run else "IMPORT"
 
-        with open(filepath, newline="", encoding="utf-8") as file:
+        try:
+            with open(filepath, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
 
-            reader = csv.DictReader(file)
+                if not reader.fieldnames or not all(
+                    c in reader.fieldnames for c in self.REQUIRED_COLUMNS
+                ):
+                    msg = f"Invalid CSV header. Required columns: {', '.join(self.REQUIRED_COLUMNS)}"
+                    logger.warning(f"_process_players_csv: {msg}")
+                    raise ValueError(msg)
 
-            # Validate header
-            if not all(col in reader.fieldnames for col in self.REQUIRED_COLUMNS):
+                for i, row in enumerate(reader, start=2):
+                    name  = row.get("name", "").strip()
+                    role  = row.get("role", "").strip().upper()
+                    phone = row.get("phone", "").strip()
+                    place = row.get("place", "").strip()
 
-                raise Exception("Invalid CSV header")
+                    if not name:
+                        errors.append(f"Row {i}: name is empty")
+                        continue
+                    if role not in self.VALID_ROLES:
+                        errors.append(f"Row {i} ({name}): invalid role '{role}' — must be one of {self.VALID_ROLES}")
+                        continue
+                    if not self.valid_phone(phone):
+                        errors.append(f"Row {i} ({name}): invalid phone '{phone}'")
+                        continue
+                    if not dry_run and Player.objects.filter(name=name).exists():
+                        errors.append(f"Row {i} ({name}): duplicate player")
+                        continue
 
-            for row in reader:
+                    if not dry_run:
+                        try:
+                            Player.objects.create(
+                                name=name, role=role, phone=phone,
+                                place=place, base_price=0, status="AVAILABLE"
+                            )
+                            created += 1
+                        except Exception as e:
+                            errors.append(f"Row {i} ({name}): {e}")
+                            logger.error(f"Row {i} ({name}): DB error — {e}")
+                    else:
+                        created += 1
 
-                name = row["name"].strip()
-                role = row["role"].strip()
-                phone = row["phone"].strip()
-                place = row["place"].strip()
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"_process_players_csv error: {e}\n{traceback.format_exc()}")
+            raise
 
-                # Validate role
-                if role not in self.VALID_ROLES:
+        logger.info(f"_process_players_csv {mode}: {created} valid, {len(errors)} errors")
+        return created, errors
 
-                    errors.append(f"{name}: Invalid role")
+    # ─────────────────────────────────────────────
+    # Teams CSV
+    # ─────────────────────────────────────────────
 
-                    continue
+    def validate_teams_csv(self, filepath):
+        logger.info(f"validate_teams_csv: dry-run on {filepath}")
+        return self._process_teams_csv(filepath, dry_run=True)
 
-                # Validate phone
-                if not self.valid_phone(phone):
+    def import_teams(self, filepath):
+        logger.info(f"import_teams: importing from {filepath}")
+        return self._process_teams_csv(filepath, dry_run=False)
 
-                    errors.append(f"{name}: Invalid phone")
+    def _process_teams_csv(self, filepath, dry_run=False):
+        created = 0
+        errors  = []
+        mode    = "DRY-RUN" if dry_run else "IMPORT"
 
-                    continue
+        try:
+            with open(filepath, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
 
-                # Prevent duplicates
-                if Player.objects.filter(name=name).exists():
+                if not reader.fieldnames or "name" not in reader.fieldnames:
+                    msg = "Invalid CSV header. Required column: name"
+                    logger.warning(f"_process_teams_csv: {msg}")
+                    raise ValueError(msg)
 
-                    errors.append(f"{name}: Duplicate player")
+                for i, row in enumerate(reader, start=2):
+                    name       = row.get("name", "").strip()
+                    short_name = row.get("short_name", "").strip()
+                    owners     = row.get("owners", "").strip()
+                    payment    = row.get("payment_info", "0").strip()
 
-                    continue
+                    if not name:
+                        errors.append(f"Row {i}: team name is empty")
+                        continue
 
-                try:
+                    if not dry_run and Team.objects.filter(name=name).exists():
+                        errors.append(f"Row {i} ({name}): duplicate team")
+                        continue
 
-                    Player.objects.create(
-                        name=name,
-                        role=role,
-                        phone=phone,
-                        place=place,
-                        base_price=0,
-                        status="AVAILABLE"
-                    )
+                    if not dry_run:
+                        try:
+                            Team.objects.create(
+                                name=name,
+                                short_name=short_name,
+                                owners=owners,
+                                payment_info=int(payment) if payment.isdigit() else 0,
+                            )
+                            created += 1
+                        except Exception as e:
+                            errors.append(f"Row {i} ({name}): {e}")
+                            logger.error(f"Row {i} ({name}): DB error — {e}")
+                    else:
+                        created += 1
 
-                    created += 1
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"_process_teams_csv error: {e}\n{traceback.format_exc()}")
+            raise
 
-                except Exception as e:
-
-                    errors.append(str(e))
-
+        logger.info(f"_process_teams_csv {mode}: {created} valid, {len(errors)} errors")
         return created, errors

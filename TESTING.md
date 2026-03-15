@@ -17,7 +17,7 @@ python dev_reset.py
 python manage.py runserver
 ```
 
-Login for admin tests: http://127.0.0.1:8000/admin/ → **sk / sk**
+Login for admin tests: http://127.0.0.1:8000/admin/ → **sk / kpl2025**
 
 ---
 
