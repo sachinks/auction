@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+  <div>
+    <h2 style="font-size:20px;font-weight:800;">Reports &amp; Downloads</h2>
+    <div style="font-size:11px;color:#555;margin-top:3px;">Download player lists and team summaries as PDF or Excel</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+
+  <!-- All Players List -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px;">📋 All Players List</div>
+    <div style="font-size:12px;color:#666;margin-bottom:16px;">
+      Complete player roster with name, place, phone, role and base price. Filter by role or download all.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      {% for role, label in role_choices %}
+      <a href="/reports/download/?type=all_players&fmt=pdf&role={{ role }}"
+        style="font-size:11px;padding:5px 12px;border-radius:4px;text-decoration:none;
+          {% if role == 'AR' %}background:rgba(243,156,18,0.15);color:#f39c12;border:1px solid rgba(243,156,18,0.3);
+          {% elif role == 'BAT' %}background:rgba(52,152,219,0.15);color:#3498db;border:1px solid rgba(52,152,219,0.3);
+          {% elif role == 'BOWL' %}background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);
+          {% else %}background:rgba(160,160,160,0.1);color:#aaa;border:1px solid rgba(160,160,160,0.2);{% endif %}">
+        {{ label }} PDF
+      </a>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="/reports/download/?type=all_players&fmt=pdf"
+        style="flex:1;background:#c0392b;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ All Players PDF
+      </a>
+      <a href="/reports/download/?type=all_players&fmt=xlsx"
+        style="flex:1;background:#27ae60;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ All Players Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- Auction Results -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px;">🏏 Auction Results</div>
+    <div style="font-size:12px;color:#666;margin-bottom:16px;">
+      All players with auction status — Sold, Unsold, Not Playing. Filter by status or download all.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <a href="/reports/download/?type=auction_results&fmt=pdf&status=SOLD"
+        style="font-size:11px;padding:5px 12px;border-radius:4px;text-decoration:none;background:rgba(39,174,96,0.15);color:#2ecc71;border:1px solid rgba(39,174,96,0.3);">
+        Sold PDF
+      </a>
+      <a href="/reports/download/?type=auction_results&fmt=pdf&status=UNSOLD"
+        style="font-size:11px;padding:5px 12px;border-radius:4px;text-decoration:none;background:rgba(230,126,34,0.15);color:#e67e22;border:1px solid rgba(230,126,34,0.3);">
+        Unsold PDF
+      </a>
+      <a href="/reports/download/?type=auction_results&fmt=pdf&status=NOT_PLAYING"
+        style="font-size:11px;padding:5px 12px;border-radius:4px;text-decoration:none;background:rgba(149,165,166,0.15);color:#95a5a6;border:1px solid rgba(149,165,166,0.3);">
+        Not Playing PDF
+      </a>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="/reports/download/?type=auction_results&fmt=pdf"
+        style="flex:1;background:#c0392b;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ All Results PDF
+      </a>
+      <a href="/reports/download/?type=auction_results&fmt=xlsx"
+        style="flex:1;background:#27ae60;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ All Results Excel
+      </a>
+    </div>
+  </div>
+
+  <!-- Team Squads -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px;">👥 Team Squads</div>
+    <div style="font-size:12px;color:#666;margin-bottom:16px;">
+      Team-wise player list with sold prices, owner info and team summary. Each team on a separate section/sheet.
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="/reports/download/?type=teamwise&fmt=pdf"
+        style="flex:1;background:#c0392b;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ Team Squads PDF
+      </a>
+      <a href="/reports/download/?type=teamwise&fmt=xlsx"
+        style="flex:1;background:#27ae60;color:#fff;padding:10px;border-radius:6px;font-size:13px;font-weight:700;text-decoration:none;text-align:center;">
+        ↓ Team Squads Excel
+      </a>
+    </div>
+    <div style="font-size:10px;color:#444;margin-top:8px;">Excel: each team on a separate sheet</div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 18px;">
+  <div style="font-size:11px;color:#555;margin-bottom:6px;">📌 Note</div>
+  <div style="font-size:12px;color:#444;line-height:1.7;">
+    Excel downloads require <code style="background:#111;padding:1px 6px;border-radius:3px;">openpyxl</code> installed.
+    If Excel fails, run: <code style="background:#111;padding:1px 6px;border-radius:3px;">pip install openpyxl</code> in your project.<br>
+    PDF downloads work without any extra dependencies.
+  </div>
+</div>
+
+{% endblock %}

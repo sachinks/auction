@@ -1,0 +1,250 @@
+name,role,phone,place
+Rohit Sharma,BAT,9810000001,Mumbai
+Virat Kohli,BAT,9810000002,Delhi
+Shubman Gill,BAT,9810000003,Punjab
+KL Rahul,BAT,9810000004,Karnataka
+Shreyas Iyer,BAT,9810000005,Mumbai
+Ruturaj Gaikwad,BAT,9810000006,Maharashtra
+Ishan Kishan,BAT,9810000007,Jharkhand
+Sanju Samson,BAT,9810000008,Kerala
+Suryakumar Yadav,BAT,9810000009,Mumbai
+Rishabh Pant,BAT,9810000010,Delhi
+Devdutt Padikkal,BAT,9810000011,Karnataka
+Yashasvi Jaiswal,BAT,9810000012,Mumbai
+Prithvi Shaw,BAT,9810000013,Mumbai
+Manish Pandey,BAT,9810000014,Karnataka
+Ambati Rayudu,BAT,9810000015,Andhra Pradesh
+Faf du Plessis,BAT,9810000016,South Africa
+David Warner,BAT,9810000017,Australia
+Quinton de Kock,BAT,9810000018,South Africa
+Jos Buttler,BAT,9810000019,England
+Travis Head,BAT,9810000020,Australia
+Jonny Bairstow,BAT,9810000021,England
+Kane Williamson,BAT,9810000022,New Zealand
+Glenn Maxwell,AR,9810000023,Australia
+Marcus Stoinis,AR,9810000024,Australia
+Mitchell Marsh,AR,9810000025,Australia
+Ben Stokes,AR,9810000026,England
+Liam Livingstone,AR,9810000027,England
+Sam Curran,AR,9810000028,England
+Moeen Ali,AR,9810000029,England
+Andre Russell,AR,9810000030,West Indies
+Kieron Pollard,AR,9810000031,West Indies
+Nicholas Pooran,BAT,9810000032,West Indies
+Shimron Hetmyer,BAT,9810000033,West Indies
+Jasprit Bumrah,BOWL,9810000034,Gujarat
+Mohammed Shami,BOWL,9810000035,Uttar Pradesh
+Mohammed Siraj,BOWL,9810000036,Telangana
+Ravindra Jadeja,AR,9810000037,Gujarat
+Hardik Pandya,AR,9810000038,Gujarat
+Axar Patel,AR,9810000039,Gujarat
+Washington Sundar,AR,9810000040,Tamil Nadu
+Ravichandran Ashwin,AR,9810000041,Tamil Nadu
+Yuzvendra Chahal,BOWL,9810000042,Haryana
+Kuldeep Yadav,BOWL,9810000043,Uttar Pradesh
+Deepak Chahar,BOWL,9810000044,Rajasthan
+Harshal Patel,BOWL,9810000045,Haryana
+Arshdeep Singh,BOWL,9810000046,Punjab
+Avesh Khan,BOWL,9810000047,Madhya Pradesh
+Umesh Yadav,BOWL,9810000048,Vidarbha
+Shardul Thakur,AR,9810000049,Maharashtra
+Tushar Deshpande,BOWL,9810000050,Maharashtra
+Bhuvneshwar Kumar,BOWL,9810000051,Uttar Pradesh
+T Natarajan,BOWL,9810000052,Tamil Nadu
+Varun Chakaravarthy,BOWL,9810000053,Tamil Nadu
+Rahul Chahar,BOWL,9810000054,Rajasthan
+Ravi Bishnoi,BOWL,9810000055,Rajasthan
+Mayank Markande,BOWL,9810000056,Punjab
+Jaydev Unadkat,BOWL,9810000057,Saurashtra
+Prasidh Krishna,BOWL,9810000058,Karnataka
+Navdeep Saini,BOWL,9810000059,Haryana
+Umran Malik,BOWL,9810000060,Jammu
+Akash Deep,BOWL,9810000061,Bihar
+Yash Thakur,BOWL,9810000062,Vidarbha
+Mukesh Kumar,BOWL,9810000063,West Bengal
+Sandeep Sharma,BOWL,9810000064,Punjab
+Khaleel Ahmed,BOWL,9810000065,Telangana
+Siddharth Kaul,BOWL,9810000066,Punjab
+Shivam Mavi,BOWL,9810000067,Uttar Pradesh
+Harshit Rana,BOWL,9810000068,Delhi
+Tilak Varma,BAT,9810000069,Telangana
+Rinku Singh,BAT,9810000070,Uttar Pradesh
+Rahul Tripathi,BAT,9810000071,Maharashtra
+Abhishek Sharma,AR,9810000072,Punjab
+Rajat Patidar,BAT,9810000073,Madhya Pradesh
+Sarfaraz Khan,BAT,9810000074,Mumbai
+Shivam Dube,AR,9810000075,Mumbai
+Shahbaz Ahmed,AR,9810000076,West Bengal
+Venkatesh Iyer,AR,9810000077,Madhya Pradesh
+Nitish Kumar Reddy,AR,9810000078,Telangana
+Tristan Stubbs,BAT,9810000079,South Africa
+Heinrich Klaasen,BAT,9810000080,South Africa
+Aiden Markram,AR,9810000081,South Africa
+David Miller,BAT,9810000082,South Africa
+Rassie van der Dussen,BAT,9810000083,South Africa
+Marco Jansen,AR,9810000084,South Africa
+Gerald Coetzee,BOWL,9810000085,South Africa
+Kagiso Rabada,BOWL,9810000086,South Africa
+Anrich Nortje,BOWL,9810000087,South Africa
+Alzarri Joseph,BOWL,9810000088,West Indies
+Jason Holder,AR,9810000089,West Indies
+Romario Shepherd,AR,9810000090,West Indies
+Sunil Narine,AR,9810000091,West Indies
+Shakib Al Hasan,AR,9810000092,Bangladesh
+Mustafizur Rahman,BOWL,9810000093,Bangladesh
+Mehidy Hasan Miraz,AR,9810000094,Bangladesh
+Rashid Khan,BOWL,9810000095,Afghanistan
+Mohammad Nabi,AR,9810000096,Afghanistan
+Azmatullah Omarzai,AR,9810000097,Afghanistan
+Noor Ahmad,BOWL,9810000098,Afghanistan
+Pat Cummins,BOWL,9810000099,Australia
+Josh Hazlewood,BOWL,9810000100,Australia
+Adam Zampa,BOWL,9810000101,Australia
+Cameron Green,AR,9810000102,Australia
+Tim David,BAT,9810000103,Singapore
+Matthew Wade,BAT,9810000104,Australia
+Phil Salt,BAT,9810000105,England
+Jake Fraser-McGurk,BAT,9810000106,Australia
+Angkrish Raghuvanshi,BAT,9810000107,West Bengal
+Mohit Sharma,BOWL,9810000108,Haryana
+Sanvir Singh,AR,9810000109,Punjab
+Yash Dayal,BOWL,9810000110,Uttar Pradesh
+Akash Madhwal,BOWL,9810000111,Uttarakhand
+Nehal Wadhera,BAT,9810000112,Punjab
+Shashank Singh,PLY,9810000113,Chhattisgarh
+Naman Dhir,PLY,9810000114,Himachal Pradesh
+Rilee Rossouw,BAT,9810000115,South Africa
+Reece Topley,BOWL,9810000116,England
+Chris Jordan,BOWL,9810000117,England
+Lockie Ferguson,BOWL,9810000118,New Zealand
+Trent Boult,BOWL,9810000119,New Zealand
+Mitchell Santner,AR,9810000120,New Zealand
+Rachin Ravindra,AR,9810000121,New Zealand
+Devon Conway,BAT,9810000122,New Zealand
+Finn Allen,BAT,9810000123,New Zealand
+Wanindu Hasaranga,AR,9810000124,Sri Lanka
+Dushmantha Chameera,BOWL,9810000125,Sri Lanka
+Pathum Nissanka,BAT,9810000126,Sri Lanka
+Shadab Khan,AR,9810000127,Pakistan
+Haris Rauf,BOWL,9810000128,Pakistan
+MS Dhoni,BAT,9810000129,Jharkhand
+Dinesh Karthik,BAT,9810000130,Tamil Nadu
+Wriddhiman Saha,BAT,9810000131,West Bengal
+Robin Uthappa,BAT,9810000132,Karnataka
+Yusuf Pathan,AR,9810000133,Gujarat
+Suresh Raina,BAT,9810000134,Uttar Pradesh
+Harbhajan Singh,AR,9810000135,Punjab
+Zaheer Khan,BOWL,9810000136,Maharashtra
+Dhawal Kulkarni,BOWL,9810000137,Maharashtra
+Amit Mishra,BOWL,9810000138,Haryana
+Piyush Chawla,BOWL,9810000139,Uttar Pradesh
+Imran Tahir,BOWL,9810000140,South Africa
+Fionn Hand,BOWL,9810000141,Ireland
+Shikhar Dhawan,BAT,9810000142,Delhi
+Mayank Agarwal,BAT,9810000143,Karnataka
+Priyank Panchal,BAT,9810000144,Gujarat
+Karun Nair,BAT,9810000145,Karnataka
+Ajinkya Rahane,BAT,9810000146,Mumbai
+Cheteshwar Pujara,BAT,9810000147,Saurashtra
+Hanuma Vihari,BAT,9810000148,Andhra Pradesh
+Murali Vijay,BAT,9810000149,Tamil Nadu
+Gautam Gambhir,BAT,9810000150,Delhi
+Virender Sehwag,BAT,9810000151,Delhi
+Sourav Ganguly,BAT,9810000152,West Bengal
+VVS Laxman,BAT,9810000153,Hyderabad
+Sachin Tendulkar,BAT,9810000154,Mumbai
+Anil Kumble,BOWL,9810000155,Karnataka
+Kapil Dev,AR,9810000156,Haryana
+Irfan Pathan,AR,9810000157,Gujarat
+Stuart Binny,AR,9810000158,Karnataka
+Manoj Tiwary,BAT,9810000159,West Bengal
+Saurabh Tiwary,BAT,9810000160,Jharkhand
+JP Duminy,AR,9810000161,South Africa
+Brendon McCullum,BAT,9810000162,New Zealand
+Ross Taylor,BAT,9810000163,New Zealand
+Craig McMillan,AR,9810000164,New Zealand
+Shoaib Akhtar,BOWL,9810000165,Pakistan
+Wasim Akram,BOWL,9810000166,Pakistan
+Waqar Younis,BOWL,9810000167,Pakistan
+Inzamam-ul-Haq,BAT,9810000168,Pakistan
+Yuvraj Singh,AR,9810000169,Punjab
+Vikas Kumar,PLY,9810000170,Haryana
+Aaqib Javed,PLY,9810000171,Punjab
+Kartik Tyagi,PLY,9810000172,Uttar Pradesh
+Chetan Sakariya,PLY,9810000173,Saurashtra
+Anukul Roy,PLY,9810000174,Bihar
+Karn Sharma,PLY,9810000175,Uttar Pradesh
+Manan Vohra,PLY,9810000176,Punjab
+Mandeep Singh,PLY,9810000177,Punjab
+Parthiv Patel,PLY,9810000178,Gujarat
+Niroshan Dickwella,PLY,9810000179,Sri Lanka
+Lakshan Sandakan,PLY,9810000180,Sri Lanka
+Nuwan Pradeep,PLY,9810000181,Sri Lanka
+Thisara Perera,PLY,9810000182,Sri Lanka
+Dilshan Munaweera,PLY,9810000183,Sri Lanka
+Kusal Mendis,PLY,9810000184,Sri Lanka
+Dasun Shanaka,PLY,9810000185,Sri Lanka
+Chamika Karunaratne,PLY,9810000186,Sri Lanka
+Bhanuka Rajapaksa,PLY,9810000187,Sri Lanka
+Dhananjaya de Silva,PLY,9810000188,Sri Lanka
+Soumya Sarkar,PLY,9810000189,Bangladesh
+Liton Das,PLY,9810000190,Bangladesh
+Mahmudullah,PLY,9810000191,Bangladesh
+Mohammad Saifuddin,PLY,9810000192,Bangladesh
+Taskin Ahmed,PLY,9810000193,Bangladesh
+Ebadot Hossain,PLY,9810000194,Bangladesh
+Tanzid Hasan,PLY,9810000195,Bangladesh
+Towhid Hridoy,PLY,9810000196,Bangladesh
+Shoriful Islam,PLY,9810000197,Bangladesh
+Nahid Rana,PLY,9810000198,Bangladesh
+Matthew Short,PLY,9810000199,Australia
+Aaron Hardie,PLY,9810000200,Australia
+Spencer Johnson,PLY,9810000201,Australia
+Nathan Ellis,PLY,9810000202,Australia
+David Willey,PLY,9810000203,England
+Adil Rashid,PLY,9810000204,England
+Mark Wood,PLY,9810000205,England
+Chris Woakes,PLY,9810000206,England
+Tom Curran,PLY,9810000207,England
+Jason Roy,PLY,9810000208,England
+Alex Hales,PLY,9810000209,England
+Dawid Malan,PLY,9810000210,England
+Iftikhar Ahmed,PLY,9810000211,Pakistan
+Fakhar Zaman,PLY,9810000212,Pakistan
+Imam-ul-Haq,PLY,9810000213,Pakistan
+Babar Azam,BAT,9810000214,Pakistan
+Mohammad Rizwan,BAT,9810000215,Pakistan
+Saim Ayub,BAT,9810000216,Pakistan
+Usman Khan,BAT,9810000217,Pakistan
+Shaheen Afridi,BOWL,9810000218,Pakistan
+Naseem Shah,BOWL,9810000219,Pakistan
+Abrar Ahmed,BOWL,9810000220,Pakistan
+Sahibzada Farhan,PLY,9810000221,Pakistan
+Temba Bavuma,PLY,9810000222,South Africa
+Reeza Hendricks,PLY,9810000223,South Africa
+Tony de Zorzi,PLY,9810000224,South Africa
+Ryan Rickelton,PLY,9810000225,South Africa
+Wiaan Mulder,PLY,9810000226,South Africa
+Lungi Ngidi,PLY,9810000227,South Africa
+Tabraiz Shamsi,PLY,9810000228,South Africa
+Keshav Maharaj,PLY,9810000229,South Africa
+Dewald Brevis,PLY,9810000230,South Africa
+Rubin Hermann,PLY,9810000231,South Africa
+Jason Behrendorff,PLY,9810000232,Australia
+Maheesh Theekshana,PLY,9810000233,Sri Lanka
+Jeffrey Vandersay,PLY,9810000234,Sri Lanka
+Kyle Mayers,PLY,9810000235,West Indies
+Evin Lewis,PLY,9810000236,West Indies
+Brandon King,PLY,9810000237,West Indies
+Shai Hope,PLY,9810000238,West Indies
+Akeal Hosein,PLY,9810000239,West Indies
+Gudakesh Motie,PLY,9810000240,West Indies
+Odean Smith,PLY,9810000241,West Indies
+Roston Chase,PLY,9810000242,West Indies
+Kyle Hope,PLY,9810000243,West Bengal
+Harvik Desai,PLY,9810000244,Saurashtra
+Anshul Kamboj,PLY,9810000245,Haryana
+Vijayakanth Viyaskanth,PLY,9810000246,Tamil Nadu
+Sai Kishore,PLY,9810000247,Tamil Nadu
+Nandre Burger,PLY,9810000248,South Africa
+Ottneil Baartman,PLY,9810000249,South Africa

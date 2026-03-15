@@ -295,6 +295,9 @@ class ExtraJerseyMember(models.Model):
     role_label    = models.CharField(max_length=50, blank=True, help_text="e.g. Manager, Coach, Volunteer")
     jersey_name   = models.CharField(max_length=100, blank=True)
     jersey_number = models.IntegerField(null=True, blank=True)
+    size_number   = models.IntegerField(null=True, blank=True)
+    size_text     = models.CharField(max_length=10, blank=True)
+    sponsor       = models.CharField(max_length=100, blank=True)
 
     member_type   = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_TEAM)
 
@@ -345,6 +348,14 @@ class Match(models.Model):
     notes          = models.TextField(blank=True)
     created_at     = models.DateTimeField(auto_now_add=True)
 
+    # Pool / stage link (nullable for legacy matches)
+    pool = models.ForeignKey(
+        "TournamentPool",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="matches"
+    )
+
     class Meta:
         ordering = ["match_number"]
 
@@ -357,3 +368,66 @@ class Match(models.Model):
         if self.winner == self.team2:
             return self.team1
         return None
+
+
+# =========================
+# TOURNAMENT STAGE / POOL
+# =========================
+
+class TournamentPool(models.Model):
+    """
+    A pool/group in a tournament stage.
+    e.g. Group Stage Pool A, Super 8 Group 1, etc.
+    """
+    STAGE_GROUP   = "GROUP"
+    STAGE_SUPER8  = "SUPER8"
+    STAGE_QF      = "QF"
+    STAGE_SF      = "SF"
+    STAGE_FINAL   = "FINAL"
+    STAGE_CUSTOM  = "CUSTOM"
+
+    STAGE_CHOICES = [
+        (STAGE_GROUP,  "Group Stage"),
+        (STAGE_SUPER8, "Super 8"),
+        (STAGE_QF,     "Quarter Final"),
+        (STAGE_SF,     "Semi Final"),
+        (STAGE_FINAL,  "Final"),
+        (STAGE_CUSTOM, "Custom"),
+    ]
+
+    stage      = models.CharField(max_length=20, choices=STAGE_CHOICES, default=STAGE_GROUP)
+    name       = models.CharField(max_length=20, help_text="e.g. A, B, Group 1")
+    order      = models.IntegerField(default=0)
+    teams      = models.ManyToManyField(Team, through="PoolTeam", blank=True, related_name="pools")
+    # How many teams advance from this pool
+    advance_n       = models.IntegerField(default=2)
+    teams_per_pool    = models.IntegerField(default=4, help_text="Max teams in this pool")
+    assignment_order  = models.CharField(max_length=20, default="sequential", help_text="sequential or roundrobin")
+    is_locked       = models.BooleanField(default=False, help_text="Lock advancement — no more changes")
+    fixtures_locked = models.BooleanField(default=False, help_text="Fixtures drawn for this pool")
+
+    class Meta:
+        ordering = ["order", "name"]
+
+    def __str__(self):
+        return f"{self.get_stage_display()} — Pool {self.name}"
+
+
+class PoolTeam(models.Model):
+    """Membership of a team in a pool, with their position/advancement status."""
+    pool     = models.ForeignKey(TournamentPool, on_delete=models.CASCADE)
+    team     = models.ForeignKey(Team, on_delete=models.CASCADE)
+    seed     = models.IntegerField(default=0, help_text="Seeding order within pool")
+    advanced = models.BooleanField(default=False, help_text="Did this team advance?")
+    position = models.IntegerField(null=True, blank=True, help_text="Final position in this pool (1st, 2nd...)")
+
+    class Meta:
+        unique_together = [("pool", "team")]
+        ordering        = ["seed"]
+
+    def __str__(self):
+        return f"{self.team.name} in Pool {self.pool.name}"
+
+
+# Extend Match with pool + stage link
+# (done via a proxy — we add pool FK directly to Match migration)

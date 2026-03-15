@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Player, Team, TournamentConfig, TournamentSettings, AuctionAction, Jersey, ExtraJerseyMember, AuctionState, Match
+from .models import Player, Team, TournamentConfig, TournamentSettings, AuctionAction, Jersey, ExtraJerseyMember, AuctionState, Match, TournamentPool, PoolTeam
 
 
 @admin.register(Player)
@@ -83,3 +83,14 @@ class MatchAdmin(admin.ModelAdmin):
     list_display  = ("match_number", "round_label", "team1", "team2", "winner", "status", "scheduled_date", "venue")
     list_filter   = ("status", "round_label")
     ordering      = ("match_number",)
+
+
+@admin.register(TournamentPool)
+class TournamentPoolAdmin(admin.ModelAdmin):
+    list_display = ("name", "stage", "advance_n", "is_locked", "order")
+    list_filter  = ("stage",)
+
+@admin.register(PoolTeam)
+class PoolTeamAdmin(admin.ModelAdmin):
+    list_display = ("team", "pool", "seed", "position", "advanced")
+    list_filter  = ("pool", "advanced")

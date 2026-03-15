@@ -1,7 +1,18 @@
-Django>=4.2
-gunicorn
-whitenoise
-reportlab
-Pillow
-dj-database-url
-psycopg2-binary
+# ── Core framework ────────────────────────────────────────────
+Django>=4.2,<5.0
+
+# ── Production server ─────────────────────────────────────────
+gunicorn>=21.2
+
+# ── Static files (Render / production) ───────────────────────
+whitenoise>=6.6
+
+# ── PDF generation ────────────────────────────────────────────
+reportlab>=4.0
+
+# ── Excel report generation ───────────────────────────────────
+openpyxl>=3.1
+
+# ── Testing ───────────────────────────────────────────────────
+pytest>=7.4
+pytest-django>=4.7

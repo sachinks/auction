@@ -359,68 +359,269 @@ body::before{
 
 
 {# ══════════════════════════════════════════════════ #}
-{# POST-AUCTION SQUADS                                #}
+{# POST-AUCTION: POOLS + FIXTURES + SQUADS            #}
 {# ══════════════════════════════════════════════════ #}
 {% else %}
 
-<div style="text-align:center;padding:18px 20px;margin-bottom:20px;
+{# ── Completion banner ── #}
+<div style="text-align:center;padding:14px 20px;margin-bottom:20px;
   background:linear-gradient(135deg,rgba(39,174,96,0.07),rgba(20,80,40,0.1));
   border:1px solid rgba(39,174,96,0.18);border-radius:12px;">
-  <div style="font-size:30px;margin-bottom:8px;">🏆</div>
-  <div style="font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:5px;margin-bottom:6px;">Auction Complete</div>
+  <div style="font-size:26px;margin-bottom:6px;">🏆</div>
+  <div style="font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:5px;margin-bottom:4px;">Auction Complete</div>
   {% if ts.match_date %}
-  <div style="font-size:14px;color:#3498db;">
-    Matches begin {{ ts.match_date|date:"d M Y" }} at {{ ts.match_date|date:"H:i" }}
-  </div>
+    <div style="font-size:13px;color:#3498db;">Matches begin {{ ts.match_date|date:"d M Y" }} at {{ ts.match_date|date:"H:i" }}</div>
   {% endif %}
 </div>
 
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;">
-  {% for team in teams %}{% if team.sold_players %}
+{# ══ POOLS + FIXTURES section ══ #}
+{% if pools_data %}
+
+{# --- Pool-wise points tables side by side --- #}
+<div style="margin-bottom:22px;">
+  <div style="font-size:9px;color:#444;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">Pool Standings</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+    {% for pd in pools_data %}
+    <div style="background:rgba(6,6,20,0.92);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+      <div style="padding:9px 14px;border-bottom:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:15px;font-weight:900;
+          background:linear-gradient(135deg,#f39c12,#e74c3c);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          Pool {{ pd.pool.name }}
+        </span>
+        <span style="font-size:10px;color:#444;">{{ pd.teams|length }} teams</span>
+      </div>
+      {% if any_match_played %}
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.02);">
+            <th style="padding:5px 10px;font-size:8px;color:#333;text-align:left;text-transform:uppercase;letter-spacing:1px;">Team</th>
+            <th style="padding:5px 5px;font-size:8px;color:#333;text-align:center;">P</th>
+            <th style="padding:5px 5px;font-size:8px;color:#2ecc71;text-align:center;">W</th>
+            <th style="padding:5px 5px;font-size:8px;color:#e74c3c;text-align:center;">L</th>
+            <th style="padding:5px 8px;font-size:8px;color:#f39c12;text-align:center;">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in pd.points %}
+          <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:6px 10px;font-size:12px;color:#ccc;">{{ row.team.name }}</td>
+            <td style="padding:6px 5px;text-align:center;font-size:11px;color:#555;">{{ row.played }}</td>
+            <td style="padding:6px 5px;text-align:center;font-size:12px;color:#2ecc71;font-weight:700;">{{ row.won }}</td>
+            <td style="padding:6px 5px;text-align:center;font-size:12px;color:#e74c3c;">{{ row.lost }}</td>
+            <td style="padding:6px 8px;text-align:center;font-size:15px;font-weight:800;color:#f39c12;">{{ row.points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      {% for team in pd.teams %}
+      <div style="padding:5px 12px;border-top:1px solid rgba(255,255,255,0.04);font-size:12px;color:#ccc;">{{ team.name }}</div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# --- Day-pair fixture columns --- #}
+{% if interleaved_sched %}
+<div style="margin-bottom:24px;">
+  <div style="font-size:9px;color:#444;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">
+    League Fixtures · {{ interleaved_sched|length }} matches
+  </div>
+
+  {# Build day cols from pools_data: pair pools 2 at a time #}
+  {% for pd in pools_data %}
+  {% if forloop.counter|divisibleby:2 or forloop.last %}
+    {# This is the right pool of a pair — emit the two-column day block #}
+  {% endif %}
+  {% endfor %}
+
+  {# Simple approach: show matches in two-column interleaved layout per day #}
+  {% with col_left="" col_right="" %}
+  {% for m in interleaved_sched %}
+  {# Group into pairs of pools using match_number parity trick — #}
+  {# Actually just show the schedule as one clean list with pool badge #}
+  {% endfor %}
+  {% endwith %}
+
+  {# Proper day-column rendering using pools_data pairing #}
+  {% for pd in pools_data %}{% if forloop.counter0|divisibleby:2 %}
+  {% with left_pd=pd right_idx=forloop.counter0|add:1 %}
+
+  {# Day number = forloop.counter0 / 2 + 1 #}
+  <div style="margin-bottom:18px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#000;font-size:10px;font-weight:800;padding:3px 12px;border-radius:20px;letter-spacing:1px;">
+        DAY {{ forloop.counter }}
+      </div>
+      <div style="height:1px;flex:1;background:rgba(255,255,255,0.05);"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+
+      {# Left pool #}
+      <div style="background:rgba(6,6,20,0.90);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+        <div style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);">
+          <span style="font-size:14px;font-weight:900;background:linear-gradient(135deg,#f39c12,#e74c3c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ pd.pool.name }}</span>
+        </div>
+        {% for m in interleaved_sched %}
+        {% if m.pool_id == pd.pool.pk %}
+        <div style="border-top:1px solid rgba(255,255,255,0.04);padding:8px 12px;display:flex;align-items:center;gap:8px;">
+          <div style="background:rgba(243,156,18,0.1);color:#a07010;font-size:9px;font-weight:800;width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ m.match_number }}</div>
+          <div style="flex:1;font-size:12px;">
+            <span style="{% if m.winner == m.team1 %}color:#2ecc71;font-weight:700;{% elif m.status == 'COMPLETED' %}color:#444;{% else %}color:#ddd;{% endif %}">{{ m.team1.name }}{% if m.winner == m.team1 %} 🏆{% endif %}</span>
+            <span style="color:#2a2a3a;margin:0 4px;font-size:10px;">vs</span>
+            <span style="{% if m.winner == m.team2 %}color:#2ecc71;font-weight:700;{% elif m.status == 'COMPLETED' %}color:#444;{% else %}color:#ddd;{% endif %}">{% if m.winner == m.team2 %}🏆 {% endif %}{{ m.team2.name }}</span>
+          </div>
+          {% if m.status == "COMPLETED" %}<span style="font-size:9px;color:#2ecc71;flex-shrink:0;">✓</span>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      {# Right pool — find next pool in pools_data #}
+      {% for pd2 in pools_data %}
+      {% if forloop.counter0 == right_idx %}
+      <div style="background:rgba(6,6,20,0.90);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">
+        <div style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);">
+          <span style="font-size:14px;font-weight:900;background:linear-gradient(135deg,#3498db,#9b59b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ pd2.pool.name }}</span>
+        </div>
+        {% for m in interleaved_sched %}
+        {% if m.pool_id == pd2.pool.pk %}
+        <div style="border-top:1px solid rgba(255,255,255,0.04);padding:8px 12px;display:flex;align-items:center;gap:8px;">
+          <div style="background:rgba(52,152,219,0.1);color:#2070a0;font-size:9px;font-weight:800;width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ m.match_number }}</div>
+          <div style="flex:1;font-size:12px;">
+            <span style="{% if m.winner == m.team1 %}color:#2ecc71;font-weight:700;{% elif m.status == 'COMPLETED' %}color:#444;{% else %}color:#ddd;{% endif %}">{{ m.team1.name }}{% if m.winner == m.team1 %} 🏆{% endif %}</span>
+            <span style="color:#2a2a3a;margin:0 4px;font-size:10px;">vs</span>
+            <span style="{% if m.winner == m.team2 %}color:#2ecc71;font-weight:700;{% elif m.status == 'COMPLETED' %}color:#444;{% else %}color:#ddd;{% endif %}">{% if m.winner == m.team2 %}🏆 {% endif %}{{ m.team2.name }}</span>
+          </div>
+          {% if m.status == "COMPLETED" %}<span style="font-size:9px;color:#2ecc71;flex-shrink:0;">✓</span>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endfor %}
+
+    </div>
+  </div>
+
+  {% endwith %}
+  {% endif %}{% endfor %}
+
+</div>
+{% endif %}{# end fixtures #}
+
+{% endif %}{# end pools_data #}
+
+
+{# ══ TEAM SQUAD CARDS — grouped by pool ══ #}
+{% if pools_data %}
+{% for pd in pools_data %}
+<div style="margin-bottom:22px;">
+
+  {# Pool header #}
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <span style="font-size:18px;font-weight:900;
+      background:linear-gradient(135deg,#f39c12,#e74c3c);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+      Pool {{ pd.pool.name }}
+    </span>
+    <div style="height:1px;flex:1;background:rgba(255,255,255,0.05);"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+    {% for team in pd.teams %}
+    {% for t in teams %}{% if t.team_serial_number == team.team_serial_number %}
+    {% if t.sold_players %}
+    <div class="squad">
+      <div class="squad-hdr">
+        <div>
+          <div class="squad-name">{{ t.name }}</div>
+          {% if t.owners %}<div style="font-size:11px;color:#555;font-style:italic;margin-top:2px;">{{ t.owners }}</div>{% endif %}
+          <div style="margin-top:4px;font-size:11px;color:#444;">{{ t.sold_players|length }} players</div>
+        </div>
+        <div class="squad-abbr">{{ t.get_short }}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.01);">
+            <th style="padding:5px 12px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Player</th>
+            <th style="padding:5px 10px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Jersey</th>
+            <th style="padding:5px 5px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">#</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in t.sold_players %}
+          <tr style="border-top:1px solid rgba(255,255,255,0.03);">
+            <td style="padding:7px 12px;">
+              <span style="font-size:9px;font-weight:700;margin-right:5px;opacity:0.5;
+                {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#888;{% endif %}">{{ p.serial_number }}</span>
+              <span style="font-size:13px;font-weight:600;
+                {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#ccc;{% endif %}">{{ p.name }}</span>
+              {% if p.place %}<span style="font-size:10px;color:#3a3a4a;margin-left:5px;">{{ p.place }}</span>{% endif %}
+            </td>
+            <td style="padding:7px 10px;font-size:12px;color:#888;">
+              {% if p.jersey and p.jersey.jersey_name %}{{ p.jersey.jersey_name }}{% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
+            </td>
+            <td style="padding:7px 5px;text-align:center;">
+              {% if p.jersey and p.jersey.jersey_number %}
+                <span style="background:rgba(116,169,245,0.12);color:#74a9f5;padding:2px 7px;border-radius:4px;font-size:12px;font-weight:700;">{{ p.jersey.jersey_number }}</span>
+              {% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}{% endfor %}
+    {% endfor %}
+  </div>
+
+</div>
+{% endfor %}
+
+{% else %}
+{# No pools — fallback flat squad grid #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+  {% for t in teams %}{% if t.sold_players %}
   <div class="squad">
     <div class="squad-hdr">
       <div>
-        <div class="squad-name">{{ team.name }}</div>
-        <div style="margin-top:5px;font-size:11px;color:#555;">
-          {{ team.sold_players|length }} player{{ team.sold_players|length|pluralize }} · {{ team.remaining_points }} pts left
-        </div>
+        <div class="squad-name">{{ t.name }}</div>
+        {% if t.owners %}<div style="font-size:11px;color:#555;font-style:italic;margin-top:2px;">{{ t.owners }}</div>{% endif %}
+        <div style="margin-top:4px;font-size:11px;color:#444;">{{ t.sold_players|length }} players</div>
       </div>
-      <div class="squad-abbr">{{ team.get_short }}</div>
+      <div class="squad-abbr">{{ t.get_short }}</div>
     </div>
     <table style="width:100%;border-collapse:collapse;">
       <thead>
         <tr style="background:rgba(255,255,255,0.01);">
-          <th style="padding:6px 14px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Player</th>
-          <th style="padding:6px 8px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">₹</th>
-          <th style="padding:6px 14px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Jersey</th>
-          <th style="padding:6px 8px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">#</th>
+          <th style="padding:5px 12px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Player</th>
+          <th style="padding:5px 10px;font-size:8px;color:#2a2a3a;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Jersey</th>
+          <th style="padding:5px 5px;font-size:8px;color:#2a2a3a;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:1px;">#</th>
         </tr>
       </thead>
       <tbody>
-        {% for p in team.sold_players %}
-        <tr style="border-top:1px solid rgba(255,255,255,0.035);">
-          <td style="padding:8px 14px;">
-            <span style="font-size:9px;font-weight:700;margin-right:6px;opacity:0.55;
-              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#888;{% endif %}">
-              {{ p.serial_number }}
-            </span>
+        {% for p in t.sold_players %}
+        <tr style="border-top:1px solid rgba(255,255,255,0.03);">
+          <td style="padding:7px 12px;">
+            <span style="font-size:9px;font-weight:700;margin-right:5px;opacity:0.5;
+              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#888;{% endif %}">{{ p.serial_number }}</span>
             <span style="font-size:13px;font-weight:600;
-              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#ccc;{% endif %}">
-              {{ p.name }}
-            </span>
+              {% if p.role == 'AR' %}color:#f39c12;{% elif p.role == 'BAT' %}color:#3498db;{% elif p.role == 'BOWL' %}color:#2ecc71;{% else %}color:#ccc;{% endif %}">{{ p.name }}</span>
+            {% if p.place %}<span style="font-size:10px;color:#3a3a4a;margin-left:5px;">{{ p.place }}</span>{% endif %}
           </td>
-          <td style="padding:8px;text-align:center;font-size:12px;color:#c08020;font-weight:700;">{{ p.sold_price }}</td>
-          <td style="padding:8px 14px;font-size:12px;color:#777;">
-            {% if p.jersey %}{{ p.jersey.jersey_name }}{% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
+          <td style="padding:7px 10px;font-size:12px;color:#888;">
+            {% if p.jersey and p.jersey.jersey_name %}{{ p.jersey.jersey_name }}{% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
           </td>
-          <td style="padding:8px;text-align:center;">
-            {% if p.jersey %}
-              <span style="background:rgba(116,169,245,0.12);color:#74a9f5;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;">
-                {{ p.jersey.jersey_number }}
-              </span>
-            {% else %}
-              <span style="color:#1e1e2e;">—</span>
-            {% endif %}
+          <td style="padding:7px 5px;text-align:center;">
+            {% if p.jersey and p.jersey.jersey_number %}
+              <span style="background:rgba(116,169,245,0.12);color:#74a9f5;padding:2px 7px;border-radius:4px;font-size:12px;font-weight:700;">{{ p.jersey.jersey_number }}</span>
+            {% else %}<span style="color:#1e1e2e;">—</span>{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -429,6 +630,7 @@ body::before{
   </div>
   {% endif %}{% endfor %}
 </div>
+{% endif %}
 
 <div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;">
   <span style="font-size:9px;color:#333;display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:#f39c12;display:inline-block;"></span>All Rounder</span>

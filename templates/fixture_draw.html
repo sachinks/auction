@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Page header -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <div>
+    <h2 style="font-size:20px;font-weight:800;">League Fixtures</h2>
+    <div style="font-size:11px;color:#555;">
+      {% if schedule %}{{ schedule|length }} matches · {% endif %}
+      Day-pair schedule · Maximum rest guaranteed
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    {% if schedule %}
+    <form method="POST" action="/fixtures/draw/reset/">
+      {% csrf_token %}
+      <button type="submit" onclick="return confirm('Delete all fixtures? Pool assignments stay.')"
+        style="background:#1a0808;color:#c0392b;border:1px solid #2a0808;padding:7px 12px;border-radius:6px;font-size:12px;">
+        🗑 Reset
+      </button>
+    </form>
+    {% endif %}
+    <a href="/fixtures/pools/" style="color:#74a9f5;font-size:12px;text-decoration:none;padding:7px 12px;border:1px solid rgba(116,169,245,0.3);border-radius:6px;">← Pools</a>
+  </div>
+</div>
+
+{% if msg %}
+<div style="background:rgba(39,174,96,0.15);border:1px solid rgba(39,174,96,0.4);padding:10px 16px;border-radius:6px;font-size:13px;color:#2ecc71;margin-bottom:16px;">✓ {{ msg }}</div>
+{% endif %}
+
+
+<!-- Not finalised -->
+{% if not pools_finalised %}
+<div class="card" style="max-width:420px;margin:60px auto;padding:32px;text-align:center;">
+  <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
+  <div style="font-size:15px;font-weight:700;color:#f39c12;margin-bottom:8px;">Assign Teams to Pools First</div>
+  <div style="font-size:12px;color:#555;margin-bottom:18px;">All teams must be in pools before generating fixtures.</div>
+  <a href="/fixtures/pools/" style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#000;padding:11px 24px;border-radius:7px;font-size:13px;font-weight:700;text-decoration:none;">→ Pools</a>
+</div>
+
+
+<!-- No fixtures yet -->
+{% elif not schedule %}
+<div class="card" style="max-width:520px;margin:40px auto;padding:32px;text-align:center;">
+  <div style="font-size:40px;margin-bottom:12px;">🏏</div>
+  <div style="font-size:18px;font-weight:800;margin-bottom:8px;">Generate League Fixtures</div>
+  <div style="font-size:12px;color:#555;margin-bottom:18px;line-height:1.7;">
+    Matches are created using the <b style="color:#f39c12;">circle-method</b> — every team gets maximum rest.<br>
+    Pools are paired by day: <b style="color:#ddd;">Day 1 → A + B</b>, <b style="color:#ddd;">Day 2 → C + D</b>…
+  </div>
+
+  <!-- Pool preview -->
+  <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px;margin-bottom:22px;text-align:left;">
+    {% for info in pools_status %}{% if info.pool.stage == "GROUP" %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;font-weight:800;background:linear-gradient(135deg,#f39c12,#e74c3c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ info.pool.name }}</span>
+        <span style="font-size:11px;color:#555;">{{ info.pool.teams.count }} teams</span>
+      </div>
+      <span style="font-size:11px;color:#444;">
+        {% with n=info.pool.teams.count %}{{ n }} teams → {{ n|add:"-1" }} rounds → <b style="color:#f39c12;">{% widthratio n|add:"-1" 2 n %}</b> matches{% endwith %}
+      </span>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+
+  <form method="POST" action="/fixtures/draw/generate/">
+    {% csrf_token %}
+    <button type="submit" style="width:100%;background:linear-gradient(135deg,#2980b9,#1a6090);color:#fff;padding:14px;border-radius:8px;font-size:16px;font-weight:800;">
+      ⚡ Generate All Fixtures
+    </button>
+  </form>
+</div>
+
+
+<!-- Fixtures generated — two-column day view -->
+{% else %}
+
+<!-- Summary strip -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
+  {% for info in pools_status %}{% if info.pool.stage == "GROUP" %}
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px;">
+    <div style="font-size:14px;font-weight:900;background:linear-gradient(135deg,#f39c12,#e74c3c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ info.pool.name }}</div>
+    <div style="font-size:10px;color:{% if info.done == info.total and info.total > 0 %}#2ecc71{% else %}#555{% endif %};margin-top:2px;font-weight:700;">{{ info.done }}/{{ info.total }}</div>
+  </div>
+  {% endif %}{% endfor %}
+  <div style="background:rgba(243,156,18,0.08);border:1px solid rgba(243,156,18,0.2);border-radius:8px;padding:8px 14px;text-align:center;min-width:80px;margin-left:auto;">
+    <div style="font-size:20px;font-weight:900;color:#f39c12;">{{ schedule|length }}</div>
+    <div style="font-size:10px;color:#888;">total matches</div>
+  </div>
+</div>
+
+
+<!-- Day columns -->
+{% for day in day_cols %}
+<div style="margin-bottom:24px;">
+
+  <!-- Day label -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+    <div style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#000;font-size:11px;font-weight:800;padding:4px 14px;border-radius:20px;letter-spacing:1px;">
+      DAY {{ day.day }}
+    </div>
+    <div style="font-size:12px;color:#555;">
+      Pool {{ day.left_pool }}{% if day.right_pool %} + Pool {{ day.right_pool }}{% endif %}
+    </div>
+    <div style="flex:1;height:1px;background:rgba(255,255,255,0.05);"></div>
+  </div>
+
+  <!-- Two pool columns -->
+  <div style="display:grid;grid-template-columns:1fr{% if day.right_pool %} 1fr{% endif %};gap:10px;">
+
+    <!-- LEFT pool column -->
+    <div style="background:rgba(6,6,20,0.90);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;">
+      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:16px;font-weight:900;background:linear-gradient(135deg,#f39c12,#e74c3c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ day.left_pool }}</span>
+        <span style="font-size:10px;color:#444;">{% for row in day.rows %}{% if row.left %}1{% endif %}{% endfor %} matches</span>
+      </div>
+      {% for row in day.rows %}{% if row.left %}{% with m=row.left %}
+      <div style="border-top:{% if not forloop.first %}1px solid rgba(255,255,255,0.04){% else %}none{% endif %};padding:11px 16px;display:flex;align-items:center;gap:10px;
+        {% if m.status == 'COMPLETED' %}background:rgba(39,174,96,0.03);{% endif %}">
+        <!-- Match number badge -->
+        <div style="background:rgba(243,156,18,0.1);color:#a07010;font-size:10px;font-weight:800;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ m.match_number }}
+        </div>
+        <!-- Teams -->
+        <div style="flex:1;">
+          <div style="font-size:13px;margin-bottom:2px;">
+            <span style="font-weight:{% if m.winner == m.team1 %}700{% else %}500{% endif %};
+              {% if m.winner == m.team1 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#555;{% else %}color:#ddd;{% endif %}">
+              {{ m.team1.name }}{% if m.winner == m.team1 %} 🏆{% endif %}
+            </span>
+            <span style="color:#2a2a3a;margin:0 6px;font-size:11px;">vs</span>
+            <span style="font-weight:{% if m.winner == m.team2 %}700{% else %}500{% endif %};
+              {% if m.winner == m.team2 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#555;{% else %}color:#ddd;{% endif %}">
+              {% if m.winner == m.team2 %}🏆 {% endif %}{{ m.team2.name }}
+            </span>
+          </div>
+          {% if m.status == 'COMPLETED' and m.winner %}
+          <div style="font-size:9px;color:#2ecc71;">{{ m.winner.name }} won</div>
+          {% elif m.status == 'COMPLETED' %}
+          <div style="font-size:9px;color:#555;">No result</div>
+          {% endif %}
+        </div>
+        <!-- Result button -->
+        <button onclick="openResult({{ m.pk }},'{{ m.team1.name|escapejs }}',{{ m.team1.team_serial_number }},'{{ m.team2.name|escapejs }}',{{ m.team2.team_serial_number }})"
+          style="font-size:10px;padding:5px 10px;border-radius:5px;white-space:nowrap;flex-shrink:0;
+            {% if m.status == 'COMPLETED' %}background:rgba(39,174,96,0.1);color:#2ecc71;border:1px solid rgba(39,174,96,0.25);
+            {% else %}background:rgba(243,156,18,0.1);color:#f39c12;border:1px solid rgba(243,156,18,0.25);{% endif %}">
+          {% if m.status == "COMPLETED" %}✓{% else %}+ Result{% endif %}
+        </button>
+      </div>
+      {% endwith %}{% endif %}{% endfor %}
+      {% if not day.rows %}
+      <div style="padding:20px;text-align:center;color:#333;font-size:12px;">No matches</div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT pool column -->
+    {% if day.right_pool %}
+    <div style="background:rgba(6,6,20,0.90);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;">
+      <div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:16px;font-weight:900;background:linear-gradient(135deg,#3498db,#9b59b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pool {{ day.right_pool }}</span>
+        <span style="font-size:10px;color:#444;">{% for row in day.rows %}{% if row.right %}1{% endif %}{% endfor %} matches</span>
+      </div>
+      {% for row in day.rows %}{% if row.right %}{% with m=row.right %}
+      <div style="border-top:{% if not forloop.first %}1px solid rgba(255,255,255,0.04){% else %}none{% endif %};padding:11px 16px;display:flex;align-items:center;gap:10px;
+        {% if m.status == 'COMPLETED' %}background:rgba(39,174,96,0.03);{% endif %}">
+        <div style="background:rgba(52,152,219,0.12);color:#2070a0;font-size:10px;font-weight:800;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ m.match_number }}
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:13px;margin-bottom:2px;">
+            <span style="font-weight:{% if m.winner == m.team1 %}700{% else %}500{% endif %};
+              {% if m.winner == m.team1 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#555;{% else %}color:#ddd;{% endif %}">
+              {{ m.team1.name }}{% if m.winner == m.team1 %} 🏆{% endif %}
+            </span>
+            <span style="color:#2a2a3a;margin:0 6px;font-size:11px;">vs</span>
+            <span style="font-weight:{% if m.winner == m.team2 %}700{% else %}500{% endif %};
+              {% if m.winner == m.team2 %}color:#2ecc71;{% elif m.status == 'COMPLETED' %}color:#555;{% else %}color:#ddd;{% endif %}">
+              {% if m.winner == m.team2 %}🏆 {% endif %}{{ m.team2.name }}
+            </span>
+          </div>
+          {% if m.status == 'COMPLETED' and m.winner %}
+          <div style="font-size:9px;color:#2ecc71;">{{ m.winner.name }} won</div>
+          {% elif m.status == 'COMPLETED' %}
+          <div style="font-size:9px;color:#555;">No result</div>
+          {% endif %}
+        </div>
+        <button onclick="openResult({{ m.pk }},'{{ m.team1.name|escapejs }}',{{ m.team1.team_serial_number }},'{{ m.team2.name|escapejs }}',{{ m.team2.team_serial_number }})"
+          style="font-size:10px;padding:5px 10px;border-radius:5px;white-space:nowrap;flex-shrink:0;
+            {% if m.status == 'COMPLETED' %}background:rgba(39,174,96,0.1);color:#2ecc71;border:1px solid rgba(39,174,96,0.25);
+            {% else %}background:rgba(52,152,219,0.1);color:#3498db;border:1px solid rgba(52,152,219,0.25);{% endif %}">
+          {% if m.status == "COMPLETED" %}✓{% else %}+ Result{% endif %}
+        </button>
+      </div>
+      {% endwith %}{% endif %}{% endfor %}
+      {% if not day.rows %}
+      <div style="padding:20px;text-align:center;color:#333;font-size:12px;">No matches</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+
+<!-- Result modal -->
+<div id="result_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;">
+  <div class="card" style="max-width:320px;width:92%;padding:24px;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:5px;">Record Result</div>
+    <div id="result_lbl" style="font-size:12px;color:#666;margin-bottom:16px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;background:rgba(255,255,255,0.04);padding:10px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.08);">
+        <input type="radio" name="rm_w" id="r_t1" style="accent-color:#2ecc71;flex-shrink:0;">
+        <span id="r_t1_name" style="font-size:13px;font-weight:600;"></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;background:rgba(255,255,255,0.04);padding:10px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.08);">
+        <input type="radio" name="rm_w" id="r_t2" style="accent-color:#2ecc71;flex-shrink:0;">
+        <span id="r_t2_name" style="font-size:13px;font-weight:600;"></span>
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;cursor:pointer;background:rgba(255,255,255,0.04);padding:10px 12px;border-radius:7px;border:1px solid rgba(255,255,255,0.08);">
+        <input type="radio" name="rm_w" id="r_draw" value="draw" style="accent-color:#888;flex-shrink:0;">
+        <span style="font-size:12px;color:#888;">No Result / Draw</span>
+      </label>
+    </div>
+    <div id="result_err" style="display:none;font-size:11px;color:#e74c3c;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="submitResult()" class="btn-primary" style="flex:1;padding:10px;font-size:13px;font-weight:700;">Save Result</button>
+      <button onclick="closeResult()" class="btn-neutral" style="padding:10px 14px;font-size:12px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let curMatchId = null;
+function openResult(mid, t1n, t1id, t2n, t2id) {
+  curMatchId = mid;
+  document.getElementById("result_lbl").innerText = t1n + " vs " + t2n;
+  document.getElementById("r_t1_name").innerText = t1n;
+  document.getElementById("r_t1").value = t1id;
+  document.getElementById("r_t2_name").innerText = t2n;
+  document.getElementById("r_t2").value = t2id;
+  document.querySelectorAll("input[name='rm_w']").forEach(r => r.checked = false);
+  document.getElementById("result_err").style.display = "none";
+  document.getElementById("result_modal").style.display = "flex";
+}
+function closeResult() {
+  document.getElementById("result_modal").style.display = "none";
+  curMatchId = null;
+}
+function submitResult() {
+  const sel = document.querySelector("input[name='rm_w']:checked");
+  if (!sel) {
+    document.getElementById("result_err").innerText = "Please select a winner.";
+    document.getElementById("result_err").style.display = "block";
+    return;
+  }
+  const data = new URLSearchParams();
+  data.append("match_id", curMatchId);
+  data.append("winner_id", sel.value);
+  fetch("/fixtures/draw/result/", { method: "POST", body: data })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === "ok") { closeResult(); location.reload(); }
+      else {
+        document.getElementById("result_err").innerText = "Error: " + (d.message || "failed");
+        document.getElementById("result_err").style.display = "block";
+      }
+    });
+}
+document.getElementById("result_modal").addEventListener("click", function(e) {
+  if (e.target === this) closeResult();
+});
+</script>
+
+{% endblock %}
