@@ -15,7 +15,7 @@ logger = logging.getLogger("system")
 
 class CSVService:
 
-    REQUIRED_COLUMNS = ["name", "role", "phone", "place"]
+    REQUIRED_COLUMNS = ["name", "place", "role", "phone"]
     VALID_ROLES      = ["BAT", "BOWL", "AR", "PLY"]
 
     def valid_phone(self, phone):
@@ -45,7 +45,7 @@ class CSVService:
                 if not reader.fieldnames or not all(
                     c in reader.fieldnames for c in self.REQUIRED_COLUMNS
                 ):
-                    msg = f"Invalid CSV header. Required columns: {', '.join(self.REQUIRED_COLUMNS)}"
+                    msg = f"Invalid CSV header. Required: name, place, role, phone"
                     logger.warning(f"_process_players_csv: {msg}")
                     raise ValueError(msg)
 
@@ -64,7 +64,7 @@ class CSVService:
                     if not self.valid_phone(phone):
                         errors.append(f"Row {i} ({name}): invalid phone '{phone}'")
                         continue
-                    if not dry_run and Player.objects.filter(name=name).exists():
+                    if not dry_run and Player.objects.filter(name=name, place=place).exists():
                         errors.append(f"Row {i} ({name}): duplicate player")
                         continue
 

@@ -178,7 +178,17 @@ class TournamentConfig(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_category_order(self):
-        return [c.strip().upper() for c in self.category_order.split(",") if c.strip()]
+        """Parse category_order — handles both 'AR,BAT,BOWL,PLY' and '["AR","BAT"]' formats."""
+        import json
+        val = (self.category_order or "AR,BAT,BOWL,PLY").strip()
+        # Try JSON array format first
+        if val.startswith("["):
+            try:
+                return [c.strip().upper() for c in json.loads(val) if c.strip()]
+            except (json.JSONDecodeError, TypeError):
+                pass
+        # Fall back to comma-separated
+        return [c.strip().strip('"').upper() for c in val.split(",") if c.strip().strip('"')]
 
     def base_price_for_role(self, role):
         return {"AR": self.base_price_AR, "BAT": self.base_price_BAT,
@@ -219,14 +229,16 @@ class AuctionAction(models.Model):
 
 class AuctionState(models.Model):
 
-    PHASE_MAIN  = "MAIN"
-    PHASE_REBID = "REBID"
-    PHASE_DONE  = "DONE"
+    PHASE_MAIN   = "MAIN"
+    PHASE_REBID  = "REBID"
+    PHASE_FREBID = "FREBID"   # Final global rebid — all unsold across all roles
+    PHASE_DONE   = "DONE"
 
     PHASE_CHOICES = [
-        (PHASE_MAIN,  "Main Round"),
-        (PHASE_REBID, "Rebid Round"),
-        (PHASE_DONE,  "Auction Complete"),
+        (PHASE_MAIN,   "Main Round"),
+        (PHASE_REBID,  "Rebid Round"),
+        (PHASE_FREBID, "Final Rebid"),
+        (PHASE_DONE,   "Auction Complete"),
     ]
 
     current_player   = models.ForeignKey(

@@ -49,11 +49,7 @@ INSTALLED_APPS = [
 # ── Middleware ──────────────────────────────────────────────
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-]
-if IS_RENDER:
-    MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
-
-MIDDLEWARE += [
+    "whitenoise.middleware.WhiteNoiseMiddleware",   # must be directly after SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -94,8 +90,21 @@ STATIC_URL  = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-if IS_RENDER:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Django 6.0: STATICFILES_STORAGE removed — use STORAGES dict.
+# WhiteNoise serves compressed/hashed static files on Render;
+# default StaticFilesStorage is used locally (runserver handles static).
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if IS_RENDER
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 
 # ── Media files ─────────────────────────────────────────────
 MEDIA_URL  = "/media/"

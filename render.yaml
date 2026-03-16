@@ -9,5 +9,5 @@ services:
         value: 3.12.0
       - key: SECRET_KEY
         generateValue: true
-      - key: DEBUG
-        value: false
+      - key: RENDER
+        value: true

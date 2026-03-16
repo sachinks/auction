@@ -21,69 +21,75 @@ class BiddingService:
 
     def validate_bid(self, player, team, amount):
         """
-        Returns None if valid.
-        Returns error string if invalid.
-        Raises nothing — caller decides what to do with the error.
+        Returns (error_string, is_below_base) if invalid.
+        Returns (None, False) if valid.
+
+        is_below_base=True  → soft warning; admin may force-sell at any price.
+        is_below_base=False → hard error; cannot be overridden by force-sell.
         """
         config = self.engine.config
 
-        # Rule 1: minimum bid = category base price
+        # Rule 1 (soft): minimum bid = category base price — force-sellable
         if config:
             base_price = config.base_price_for_role(player.role)
             if amount < base_price:
                 return (
-                    f"Bid ₹{amount} is below the base price for "
-                    f"{player.role} (minimum: ₹{base_price})."
+                    f"Bid ₹{amount} is below the base price of ₹{base_price} "
+                    f"for {player.role}.",
+                    True   # is_below_base
                 )
 
-        # Rule 2: bid cannot exceed available points
+        # Rule 2 (hard): bid cannot exceed available points
         if amount > team.remaining_points:
             return (
                 f"Bid ₹{amount} exceeds {team.name}'s available points "
-                f"(₹{team.remaining_points})."
+                f"(₹{team.remaining_points}).",
+                False
             )
 
-        # Rule 3: safe bid — enough left to fill remaining slots
+        # Rule 3 (hard): safe bid — enough left to fill remaining slots
         if config:
             squad_size      = team.player_set.filter(status=Player.STATUS_SOLD).count()
             remaining_slots = config.bidding_slots - squad_size
             if remaining_slots > 1:
-                min_per_slot   = config.total_points / 100
+                min_per_slot   = config.base_price_PLY or 100
                 points_after   = team.remaining_points - amount
                 minimum_needed = (remaining_slots - 1) * min_per_slot
                 if points_after < minimum_needed:
                     return (
                         f"⚠ Unsafe bid — {team.name} would have ₹{points_after} left "
                         f"but needs ₹{int(minimum_needed)} minimum to fill "
-                        f"{remaining_slots - 1} remaining slot(s)."
+                        f"{remaining_slots - 1} remaining slot(s).",
+                        False
                     )
 
-        return None  # valid
+        return None, False  # valid
 
     # ─────────────────────────────────────────────
     # SELL PLAYER
     # ─────────────────────────────────────────────
 
     def sell_player(self, player_id, team_id, amount, force=False):
+        """
+        force=True bypasses below-base-price AND all other validation.
+        Returns (success, error_message, is_below_base).
+        is_below_base=True  → caller should offer Force Sell option.
+        is_below_base=False → hard error, no force option.
+        """
         logger.info(f"sell_player: player={player_id} team={team_id} amount={amount} force={force}")
-        """
-        force=True bypasses ALL validation (item 8).
-        Returns (success, error_message, allow_force).
-        allow_force=True means a Force Sell button should be shown.
-        """
         player = Player.objects.get(serial_number=player_id)
         team   = Team.objects.get(team_serial_number=team_id)
         amount = int(amount)
 
         if not force:
-            error = self.validate_bid(player, team, amount)
+            error, is_below_base = self.validate_bid(player, team, amount)
             if error:
-                return False, error, True  # allow_force=True for all bid errors
+                return False, error, is_below_base
 
-        # Check if team is over slots (item 20)
-        config      = self.engine.config
-        squad_size  = team.player_set.filter(status=Player.STATUS_SOLD).count()
-        over_slots  = config and squad_size >= config.bidding_slots
+        # Check if team is over slots
+        config     = self.engine.config
+        squad_size = team.player_set.filter(status=Player.STATUS_SOLD).count()
+        over_slots = config and squad_size >= config.bidding_slots
 
         if over_slots and not force:
             return False, None, False  # signal: confirm_extra required
@@ -91,7 +97,7 @@ class BiddingService:
         player.team       = team
         player.sold_price = amount
         player.status     = Player.STATUS_SOLD
-        player.save()   # model save() handles point deduction
+        player.save()
 
         state = AuctionState.get()
         AuctionAction.objects.create(
@@ -121,11 +127,18 @@ class BiddingService:
         player.status       = Player.STATUS_UNSOLD
         action_type         = "UNSOLD"
 
-        # Auto-drop only for PLY
-        if player.role not in ICON_CATEGORIES and config:
-            if player.rebid_count >= config.max_rebid_attempts:
+        # Auto-drop when rebid limit reached
+        # PLY: drop after max_rebid_attempts (default 3)
+        # Icon (AR/BAT/BOWL): drop after max_rebid_attempts × 2 to give more chances
+        if config:
+            max_attempts = config.max_rebid_attempts  # same limit for all roles
+            if player.rebid_count >= max_attempts:
                 player.status = Player.STATUS_NOT_PLAYING
                 action_type   = "NOT_PLAYING"
+                logger.info(
+                    f"mark_unsold: {player.name} ({player.role}) "
+                    f"auto-dropped after {player.rebid_count} attempts"
+                )
 
         player.save()
 
@@ -184,6 +197,9 @@ class BiddingService:
 
         elif action.action == "NOT_PLAYING":
             player.status = Player.STATUS_AVAILABLE
+            # Decrement rebid_count if set — covers auto-drop via mark_unsold()
+            if player.rebid_count > 0:
+                player.rebid_count -= 1
             player.save()
 
         state = AuctionState.get()

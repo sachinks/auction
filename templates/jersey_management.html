@@ -616,6 +616,7 @@ function savePlayerJerseyFull(playerId) {
   data.append("jersey_name",   jerseyName.trim());
   data.append("jersey_number", jerseyNumber);
   data.append("size_number",   sizeNumber);
+  data.append("size_text",     sizeTxt);
   data.append("sponsor",       sponsor);
 
   if (statusEl) { statusEl.style.color = "#888"; statusEl.innerText = "Saving…"; }
@@ -627,10 +628,7 @@ function savePlayerJerseyFull(playerId) {
         if (statusEl) { statusEl.style.color = "#2ecc71"; statusEl.innerText = "✓ Saved"; }
         // Sync text field if server derived it
         if (d.size_text && sizeTxtEl) sizeTxtEl.value = d.size_text;
-        if (d.size_text && sizeNumEl && !sizeNumEl.value) {
-          const numBack = sizeMapRev[d.size_text] || "";
-          if (numBack) sizeNumEl.value = numBack;
-        }
+        if (d.size_number && sizeNumEl && !sizeNumEl.value) sizeNumEl.value = d.size_number;
       } else {
         if (statusEl) { statusEl.style.color = "#e74c3c"; statusEl.innerText = "Error: " + (d.message || ""); }
       }

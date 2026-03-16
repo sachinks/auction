@@ -28,6 +28,7 @@ urlpatterns = [
 
     # ── Audit log ────────────────────────────────────────────
     path("auction/audit-log/",           views.audit_log,             name="audit_log"),
+    path("auction/debug/",               views.debug_state,           name="debug_state"),
 
     # ── Jersey ───────────────────────────────────────────────
     path("jersey/",                      views.jersey_portal,         name="jersey_portal"),

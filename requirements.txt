@@ -1,21 +1,36 @@
 # ── Core framework ────────────────────────────────────────────
-Django>=4.2,<5.0
+Django==6.0.3
 
 # ── Production server ─────────────────────────────────────────
-gunicorn>=21.2
+gunicorn==25.1.0
 
 # ── Static files (Render / production) ───────────────────────
-whitenoise>=6.6
+whitenoise==6.12.0
+
+# ── Image handling (Player photo field) ───────────────────────
+Pillow==12.1.1
 
 # ── PDF generation ────────────────────────────────────────────
-reportlab>=4.0
-
-# ── Excel report generation ───────────────────────────────────
-openpyxl>=3.1
+reportlab==4.4.10
 
 # ── Environment variables ─────────────────────────────────────
-python-dotenv>=1.0
+python-dotenv==1.2.2
+
+# ── Database URL parsing (Render) ─────────────────────────────
+dj-database-url==3.1.2
 
 # ── Testing ───────────────────────────────────────────────────
-pytest>=7.4
-pytest-django>=4.7
+pytest==9.0.2
+pytest-django==4.12.0
+
+# ── Transitive deps (pinned for reproducibility) ──────────────
+asgiref==3.11.1
+charset-normalizer==3.4.5
+iniconfig==2.3.0
+packaging==26.0
+pluggy==1.6.0
+Pygments==2.19.2
+sqlparse==0.5.5
+
+# NOTE: openpyxl is NOT installed — Excel (.xlsx) exports will
+# return a 501 error gracefully. Install openpyxl>=3.1 to enable.

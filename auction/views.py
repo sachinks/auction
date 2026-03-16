@@ -14,6 +14,14 @@ from .services.csv_service import CSVService
 from .services.audit_service import AuditService
 from .services.jersey_service import JerseyService
 from .utils.bid_utils import bid_increment
+from .services.fixture_service import (
+    all_pools_status, suggest_pool_config, pool_points_table,
+    detect_ties, advance_teams, get_advanced_teams,
+    create_group_stage, create_knockout_stage, get_interleaved_schedule,
+    generate_pool_matches, add_team_to_pool, remove_team_from_pool,
+    next_pool_for_draw, pool_undrawn_pairs, create_interleaved_match,
+    _renumber_matches,
+)
 
 from config.logging_config import auction_logger, error_logger, system_logger
 from config.error_settings import api_error_response
@@ -73,9 +81,6 @@ def public_board(request):
     any_match_played  = False
 
     if state.phase == AuctionState.PHASE_DONE:
-        from auction.services.fixture_service import (
-            pool_points_table, get_interleaved_schedule, all_pools_status
-        )
         group_pools = TournamentPool.objects.filter(
             stage=TournamentPool.STAGE_GROUP
         ).order_by("order").prefetch_related("teams")
@@ -128,7 +133,11 @@ def auction_control(request):
     config = TournamentConfig.objects.first()
     ts     = TournamentSettings.get()
     if not config:
-        return render(request, "auction_setup.html", {"ts": ts})
+        return render(request, "auction_setup.html", {
+            "ts":           ts,
+            "player_count": Player.objects.count(),
+            "team_count":   Team.objects.count(),
+        })
 
     engine = AuctionEngine()
     state  = AuctionState.get()
@@ -287,12 +296,14 @@ def sell_player(request):
                 "max_slots":    config.bidding_slots if config else "?",
             })
 
-        success, error, allow_force = service.sell_player(player_id, team_id, amount, force=force or extra)
+        success, error, is_below_base = service.sell_player(player_id, team_id, amount, force=force or extra)
 
         if success:
             return JsonResponse({"status": "ok"})
+        elif error and is_below_base:
+            return JsonResponse({"status": "below_base", "message": error})
         elif error:
-            return JsonResponse({"status": "error", "message": error, "allow_force": allow_force})
+            return JsonResponse({"status": "error", "message": error})
         else:
             return JsonResponse({"status": "error", "message": "Unknown error"})
 
@@ -371,11 +382,14 @@ def refresh_points(request):
 # ────────────────────────────────────────────────
 
 @login_required
+@login_required
 def complete_auction(request):
-    state                = AuctionState.get()
-    state.phase          = AuctionState.PHASE_DONE
-    state.is_active      = False
-    state.current_player = None
+    state                     = AuctionState.get()
+    state.phase               = AuctionState.PHASE_DONE
+    state.is_active           = False
+    state.current_player      = None
+    state.awaiting_transition = False
+    state.transition_message  = ""
     state.save()
     return redirect("/auction/summary/")
 
@@ -481,10 +495,8 @@ def upload_csv(request):
                 result = {"error": "Unknown demo file selected."}
             else:
                 file_type, filename = FILE_MAP[demo_file]
-                filepath = os.path.join(
-                    settings.BASE_DIR, "fixtures", "sample_data", filename
-                )
-                if not os.path.exists(filepath):
+                filepath = settings.BASE_DIR / "sample_data" / filename
+                if not filepath.exists():
                     result = {"error": f"Demo file not found on server: {filename}. Make sure it is committed to the repository."}
                 else:
                     try:
@@ -539,8 +551,8 @@ def upload_csv(request):
 # LOAD SAMPLE DATA
 # ────────────────────────────────────────────────
 
-@login_required
 @csrf_exempt
+@login_required
 def load_sample_data(request):
     """Load a bundled sample CSV directly — no file upload needed."""
     import os
@@ -550,7 +562,6 @@ def load_sample_data(request):
         dataset  = request.POST.get("dataset")  # short_players | short_teams | long_players | long_teams
         csv_type = request.POST.get("csv_type") # players | teams
 
-        SAMPLE_DIR = os.path.join(settings.BASE_DIR, "fixtures", "sample_data")
         allowed = {
             "short_players": ("players", "short_players.csv"),
             "short_teams":   ("teams",   "short_teams.csv"),
@@ -561,9 +572,9 @@ def load_sample_data(request):
             return JsonResponse({"status": "error", "message": "Unknown dataset"})
 
         file_type, filename = allowed[dataset]
-        filepath = os.path.join(SAMPLE_DIR, filename)
+        filepath = settings.BASE_DIR / "sample_data" / filename
 
-        if not os.path.exists(filepath):
+        if not filepath.exists():
             return JsonResponse({"status": "error", "message": f"File not found: {filename}"})
 
         service = CSVService()
@@ -598,7 +609,7 @@ def download_sample_csv(request, name):
     if name not in allowed:
         from django.http import Http404
         raise Http404("Sample file not found")
-    filepath = os.path.join(settings.BASE_DIR, "sample_data", allowed[name])
+    filepath = settings.BASE_DIR / "sample_data" / allowed[name]
     try:
         with open(filepath, "rb") as f:
             content = f.read()
@@ -609,6 +620,44 @@ def download_sample_csv(request, name):
     except FileNotFoundError:
         from django.http import Http404
         raise Http404("Sample file not found")
+
+
+# ────────────────────────────────────────────────
+# DEBUG STATE (remove before production)
+# ────────────────────────────────────────────────
+
+@login_required
+def debug_state(request):
+    """Visit /auction/debug/ to see current auction state."""
+    from django.http import HttpResponse
+    import json
+    try:
+        state  = AuctionState.get()
+        config = TournamentConfig.objects.first()
+        lines  = [
+            f"phase:             {state.phase}",
+            f"current_category:  {state.current_category}",
+            f"category_pass:     {state.category_pass}",
+            f"auction_round:     {state.auction_round}",
+            f"is_active:         {state.is_active}",
+            f"awaiting_trans:    {state.awaiting_transition}",
+            f"transition_msg:    {state.transition_message}",
+            f"current_player:    {state.current_player}",
+            "",
+            "--- Player counts ---",
+        ]
+        for role in ["AR", "BAT", "BOWL", "PLY"]:
+            av = Player.objects.filter(role=role, status="AVAILABLE").count()
+            so = Player.objects.filter(role=role, status="SOLD").count()
+            un = Player.objects.filter(role=role, status="UNSOLD").count()
+            np = Player.objects.filter(role=role, status="NOT_PLAYING").count()
+            lines.append(f"{role}: AVAIL={av} SOLD={so} UNSOLD={un} NOT_PLAYING={np}")
+        if config:
+            lines += ["", f"category_order: {config.get_category_order()}",
+                      f"max_rebid_attempts: {config.max_rebid_attempts}"]
+        return HttpResponse("\n".join(lines), content_type="text/plain")
+    except Exception as e:
+        return HttpResponse(f"Error: {e}", content_type="text/plain")
 
 
 # ────────────────────────────────────────────────
@@ -650,17 +699,28 @@ def jersey_portal(request):
         # ── Save jersey name/number for a sold player ──
         if action == "save_player_jersey":
             try:
-                player_id     = int(request.POST.get("player_id"))
-                jersey_name   = request.POST.get("jersey_name", "").strip()
+                import json as _j2
+                player_id         = int(request.POST.get("player_id"))
+                jersey_name       = request.POST.get("jersey_name", "").strip()
                 jersey_number_raw = request.POST.get("jersey_number", "").strip()
-                jersey_number = int(jersey_number_raw) if jersey_number_raw else None
+                jersey_number     = int(jersey_number_raw) if jersey_number_raw else None
+                snum_raw          = request.POST.get("size_number", "").strip()
+                snum              = int(snum_raw) if snum_raw else 0
+                # Derive size_text from config mapping
+                _cfg2  = TournamentConfig.objects.first()
+                _smap2 = {}
+                if _cfg2 and _cfg2.size_mapping:
+                    try: _smap2 = _j2.loads(_cfg2.size_mapping)
+                    except: pass
+                stxt = _smap2.get(str(snum), "") if snum else ""
                 player = Player.objects.get(serial_number=player_id)
                 if jersey_name or jersey_number is not None:
                     Jersey.objects.update_or_create(
                         player=player,
-                        defaults={"jersey_name": jersey_name,
-                                  "jersey_number": jersey_number or 0,
-                                  "size_number": 0, "size_text": ""}
+                        defaults={"jersey_name":   jersey_name,
+                                  "jersey_number":  jersey_number or 0,
+                                  "size_number":    snum,
+                                  "size_text":      stxt}
                     )
                     msg = f"Saved jersey for {player.name}."
                 else:
@@ -835,8 +895,8 @@ def jersey_portal(request):
 # JERSEY AJAX SAVE (inline player row)
 # ────────────────────────────────────────────────
 
-@login_required
 @csrf_exempt
+@login_required
 def jersey_save_ajax(request):
     if request.method != "POST":
         return JsonResponse({"status": "invalid"})
@@ -848,19 +908,32 @@ def jersey_save_ajax(request):
         jersey_number     = int(jersey_number_raw) if jersey_number_raw else 0
         size_number_raw   = request.POST.get("size_number", "").strip()
         size_number       = int(size_number_raw) if size_number_raw else 0
+        size_text_raw     = request.POST.get("size_text", "").strip().upper()
 
-        # Derive size_text from config size_mapping
-        config = TournamentConfig.objects.first()
-        size_text = ""
-        if config and config.size_mapping and size_number:
+        # Build size map from config
+        config  = TournamentConfig.objects.first()
+        smap    = {}
+        smap_rev = {}
+        if config and config.size_mapping:
             try:
-                mapping   = _json.loads(config.size_mapping)
-                size_text = mapping.get(str(size_number), "")
+                smap     = _json.loads(config.size_mapping)
+                smap_rev = {v.upper(): k for k, v in smap.items()}
             except Exception:
                 pass
 
+        # Derive size_text from size_number if text not provided
+        if size_number and not size_text_raw:
+            size_text = smap.get(str(size_number), "")
+        elif size_text_raw and not size_number:
+            # Derive size_number from size_text if number not provided
+            num_str     = smap_rev.get(size_text_raw, "")
+            size_number = int(num_str) if num_str else 0
+            size_text   = size_text_raw
+        else:
+            size_text = size_text_raw or smap.get(str(size_number), "")
+
         sponsor = request.POST.get("sponsor", "").strip()
-        player = Player.objects.get(serial_number=player_id)
+        player  = Player.objects.get(serial_number=player_id)
         Jersey.objects.update_or_create(
             player=player,
             defaults={
@@ -871,7 +944,7 @@ def jersey_save_ajax(request):
                 "sponsor":       sponsor,
             }
         )
-        return JsonResponse({"status": "ok", "size_text": size_text})
+        return JsonResponse({"status": "ok", "size_text": size_text, "size_number": size_number})
     except Exception as e:
         return JsonResponse({"status": "error", "message": api_error_response(e)})
 
@@ -880,8 +953,8 @@ def jersey_save_ajax(request):
 # EXPORT JERSEY PDF
 # ────────────────────────────────────────────────
 
-@login_required
 @csrf_exempt
+@login_required
 def update_size_mapping(request):
     import json as _json
     if request.method != "POST":
@@ -922,250 +995,11 @@ def fixtures_redirect(request):
     return redirect("/fixtures/pools/")
 
 
-# ────────────────────────────────────────────────
-# FIXTURES — ADMIN
-# ────────────────────────────────────────────────
-
-@login_required
-def fixtures_admin(request):
-    """
-    Admin page: spin wheel to generate matches one by one,
-    or auto-generate full round-robin. Also record results.
-    """
-    teams   = list(Team.objects.all().order_by("name"))
-    matches = Match.objects.select_related("team1", "team2", "winner").all()
-    ts      = TournamentSettings.get()
-    msg     = None
-
-    if request.method == "POST":
-        action = request.POST.get("action")
-
-        # ── Create a single match from spin result ──
-        if action == "create_match":
-            t1_id = request.POST.get("team1_id")
-            t2_id = request.POST.get("team2_id")
-            round_label  = request.POST.get("round_label", "League").strip() or "League"
-            sched        = request.POST.get("scheduled_date") or None
-            venue        = request.POST.get("venue", "").strip()
-            try:
-                t1 = Team.objects.get(team_serial_number=t1_id)
-                t2 = Team.objects.get(team_serial_number=t2_id)
-                if t1 == t2:
-                    msg = "Cannot create a match between the same team."
-                elif Match.objects.filter(team1=t1, team2=t2).exists() or \
-                     Match.objects.filter(team1=t2, team2=t1).exists():
-                    msg = f"{t1.name} vs {t2.name} already exists."
-                else:
-                    next_num = (Match.objects.count() or 0) + 1
-                    Match.objects.create(
-                        match_number=next_num, round_label=round_label,
-                        team1=t1, team2=t2,
-                        scheduled_date=sched, venue=venue
-                    )
-                    msg = f"Match {next_num} created: {t1.name} vs {t2.name}"
-            except Exception as e:
-                msg = f"Error: {e}"
-
-        # ── Generate full round-robin ──
-        elif action == "generate_all":
-            round_label = request.POST.get("round_label", "League").strip() or "League"
-            sched       = request.POST.get("scheduled_date") or None
-            venue       = request.POST.get("venue", "").strip()
-            created = 0
-            skipped = 0
-            num = (Match.objects.count() or 0) + 1
-            for i, t1 in enumerate(teams):
-                for t2 in teams[i+1:]:
-                    exists = (Match.objects.filter(team1=t1, team2=t2).exists() or
-                              Match.objects.filter(team1=t2, team2=t1).exists())
-                    if exists:
-                        skipped += 1
-                        continue
-                    Match.objects.create(
-                        match_number=num, round_label=round_label,
-                        team1=t1, team2=t2,
-                        scheduled_date=sched, venue=venue
-                    )
-                    num  += 1
-                    created += 1
-            msg = f"Generated {created} matches." + (f" Skipped {skipped} existing." if skipped else "")
-
-        # ── Record result ──
-        elif action == "record_result":
-            match_id  = request.POST.get("match_id")
-            winner_id = request.POST.get("winner_id")
-            try:
-                match = Match.objects.get(pk=match_id)
-                if winner_id == "draw":
-                    match.winner = None
-                    match.notes  = request.POST.get("notes", "").strip() or "No result / Draw"
-                else:
-                    match.winner = Team.objects.get(team_serial_number=winner_id)
-                match.status = Match.STATUS_COMPLETED
-                match.save()
-                msg = f"Result saved for Match {match.match_number}."
-            except Exception as e:
-                msg = f"Error: {e}"
-
-        # ── Delete match ──
-        elif action == "delete_match":
-            try:
-                m = Match.objects.get(pk=request.POST.get("match_id"))
-                label = str(m)
-                m.delete()
-                # Renumber remaining
-                for i, m2 in enumerate(Match.objects.all(), start=1):
-                    if m2.match_number != i:
-                        m2.match_number = i
-                        m2.save()
-                msg = f"Deleted {label}."
-            except Exception as e:
-                msg = f"Error: {e}"
-
-        # ── Edit match date/venue ──
-        elif action == "edit_match":
-            try:
-                m       = Match.objects.get(pk=request.POST.get("match_id"))
-                sched   = request.POST.get("scheduled_date") or None
-                venue   = request.POST.get("venue", "").strip()
-                rl      = request.POST.get("round_label", "").strip()
-                if sched is not None:
-                    m.scheduled_date = sched
-                if venue is not None:
-                    m.venue = venue
-                if rl:
-                    m.round_label = rl
-                m.save()
-                msg = f"Match {m.match_number} updated."
-            except Exception as e:
-                msg = f"Error: {e}"
-
-        # ── Clear all matches ──
-        elif action == "clear_all":
-            Match.objects.all().delete()
-            msg = "All matches cleared."
-
-        matches = Match.objects.select_related("team1", "team2", "winner").all()
-
-    # Points table
-    points = _build_points_table(teams, matches)
-
-    # Team colours for spin wheel
-    palette = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6",
-               "#1abc9c","#e67e22","#e91e63","#00bcd4","#8bc34a",
-               "#ff5722","#607d8b"]
-    for i, t in enumerate(teams):
-        t.wheel_color = palette[i % len(palette)]
-
-    # Existing match pairs for JS — so spin auto-skips duplicates
-    existing_pairs = set()
-    for m in matches:
-        a = m.team1.team_serial_number
-        b = m.team2.team_serial_number
-        existing_pairs.add((min(a,b), max(a,b)))
-    existing_pairs_list = [[a, b] for a, b in existing_pairs]
-
-    return render(request, "fixtures_admin.html", {
-        "teams":          teams,
-        "matches":        matches,
-        "points":         points,
-        "msg":            msg,
-        "ts":             ts,
-        "existing_pairs": existing_pairs_list,
-    })
-
-
-# ────────────────────────────────────────────────
-# FIXTURES — PUBLIC
-# ────────────────────────────────────────────────
-
-def fixtures_public(request):
-    teams   = list(Team.objects.all().order_by("name"))
-    matches = Match.objects.select_related("team1", "team2", "winner").all()
-    ts      = TournamentSettings.get()
-    points  = _build_points_table(teams, matches)
-
-    # Group matches by round_label
-    rounds = {}
-    for m in matches:
-        rounds.setdefault(m.round_label, []).append(m)
-
-    return render(request, "fixtures_public.html", {
-        "rounds":  rounds,
-        "points":  points,
-        "ts":      ts,
-    })
-
-
-# ────────────────────────────────────────────────
-# SPIN RESULT — AJAX (returns random team)
-# ────────────────────────────────────────────────
-
-@csrf_exempt
-def spin_result(request):
-    """Returns a random team ID/name for the spin wheel landing."""
-    import random
-    try:
-        exclude_id = request.POST.get("exclude_id")
-        teams = Team.objects.all()
-        if exclude_id:
-            teams = teams.exclude(team_serial_number=exclude_id)
-        if not teams.exists():
-            return JsonResponse({"status": "error", "message": "No teams"})
-        team = random.choice(list(teams))
-        return JsonResponse({
-            "status":     "ok",
-            "team_id":    team.team_serial_number,
-            "team_name":  team.name,
-            "team_short": team.get_short(),
-        })
-    except Exception as e:
-        error_logger.error(f"spin_result error: {e}\n{traceback.format_exc()}")
-        return JsonResponse({"status": "error", "message": api_error_response(e)})
-
-
-# ────────────────────────────────────────────────
-# INTERNAL: build points table
-# ────────────────────────────────────────────────
-
-def _build_points_table(teams, matches):
-    table = {t.team_serial_number: {
-        "team": t, "played": 0, "won": 0, "lost": 0, "points": 0
-    } for t in teams}
-
-    for m in matches:
-        if m.status == Match.STATUS_COMPLETED:
-            t1id = m.team1.team_serial_number
-            t2id = m.team2.team_serial_number
-            table[t1id]["played"] += 1
-            table[t2id]["played"] += 1
-            if m.winner:
-                wid = m.winner.team_serial_number
-                lid = t2id if wid == t1id else t1id
-                table[wid]["won"]    += 1
-                table[wid]["points"] += 2
-                table[lid]["lost"]   += 1
-
-    return sorted(table.values(), key=lambda x: (-x["points"], -x["won"]))
-
-
-# ════════════════════════════════════════════════════════════════
-# POOL / TOURNAMENT BRACKET MANAGEMENT
-# ════════════════════════════════════════════════════════════════
-
-from .services.fixture_service import (
-    suggest_pool_config, create_group_stage, generate_pool_matches,
-    pool_points_table, detect_ties, advance_teams, all_pools_status,
-    create_knockout_stage, get_advanced_teams, add_team_to_pool,
-    remove_team_from_pool
-)
-
 
 @login_required
 def pool_manager(request):
     """Unified pools + fixtures page."""
     system_logger.debug(f"pool_manager: user={request.user}")
-    from auction.services.fixture_service import get_interleaved_schedule
     teams       = list(Team.objects.all().order_by("name"))
     pools_info  = all_pools_status()
     group_pools = TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).order_by("order")
@@ -1249,8 +1083,8 @@ def pool_manager(request):
     })
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_generate_all(request):
     """Generate round-robin matches for ALL group stage pools at once."""
     if request.method == "POST":
@@ -1262,8 +1096,8 @@ def pool_generate_all(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_reset(request):
     """Wipe all group-stage pools, their matches, and pool-team assignments."""
     if request.method == "POST":
@@ -1281,8 +1115,8 @@ def pool_reset(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def fixtures_reset(request):
     """Wipe all pool matches only — keeps pool/team assignments intact."""
     if request.method == "POST":
@@ -1293,7 +1127,6 @@ def fixtures_reset(request):
         TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).update(
             fixtures_locked=False
         )
-        from auction.services.fixture_service import _renumber_matches
         _renumber_matches()
         return redirect(f"/fixtures/pools/?msg=Cleared+{count}+matches.+Pools+intact.")
     return redirect("/fixtures/pools/")
@@ -1316,8 +1149,8 @@ def pool_create(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_generate_matches(request):
     """Generate round-robin matches for a specific pool."""
     if request.method == "POST":
@@ -1333,8 +1166,8 @@ def pool_generate_matches(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_advance(request):
     """Mark teams as advanced from a pool — handle ties manually."""
     if request.method == "POST":
@@ -1348,8 +1181,8 @@ def pool_advance(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_team_add(request):
     if request.method == "POST":
         try:
@@ -1363,8 +1196,8 @@ def pool_team_add(request):
     return JsonResponse({"status": "invalid"})
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_team_remove(request):
     if request.method == "POST":
         try:
@@ -1378,8 +1211,8 @@ def pool_team_remove(request):
     return JsonResponse({"status": "invalid"})
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_spin_assign(request):
     """
     AJAX: Auto-assign a spun team to the correct pool based on assignment_order.
@@ -1456,8 +1289,8 @@ def pool_spin_assign(request):
         return JsonResponse({"status": "error", "message": api_error_response(e)})
 
 
-@login_required
 @csrf_exempt
+@login_required
 def pool_record_result(request):
     """Record a match result from the pools page."""
     if request.method != "POST":
@@ -1468,7 +1301,13 @@ def pool_record_result(request):
         match = Match.objects.get(pk=match_id)
         if winner_id == "draw":
             match.winner = None
-            match.notes  = "No result / Draw"
+            # Preserve round:N prefix so interleaved schedule ordering is intact
+            existing = match.notes or ""
+            if existing.startswith("round:"):
+                round_part  = existing.split("|")[0].rstrip()
+                match.notes = round_part + " | draw"
+            else:
+                match.notes = "draw"
         else:
             match.winner = Team.objects.get(team_serial_number=int(winner_id))
         match.status = Match.STATUS_COMPLETED
@@ -1501,91 +1340,10 @@ def knockout_create(request):
     return redirect("/fixtures/pools/")
 
 
-# ════════════════════════════════════════════════════════════════
-# FIXTURE DRAW — interleaved spin wheel
-# ════════════════════════════════════════════════════════════════
-
-@login_required
-def fixture_draw(request):
-    """Fixture schedule page — shows matches grouped by day-pair with two columns."""
-    from auction.services.fixture_service import (
-        get_interleaved_schedule, all_pools_status
-    )
-    group_pools = list(TournamentPool.objects.filter(
-        stage=TournamentPool.STAGE_GROUP
-    ).order_by("order"))
-
-    ts = TournamentSettings.get()
-
-    total_teams    = Team.objects.count()
-    assigned_teams = PoolTeam.objects.filter(
-        pool__stage=TournamentPool.STAGE_GROUP
-    ).values_list("team__team_serial_number", flat=True).distinct().count()
-    pools_finalised = (assigned_teams == total_teams and len(group_pools) > 0)
-
-    schedule     = get_interleaved_schedule()
-    pools_status = all_pools_status()
-    msg          = request.GET.get("msg", "")
-
-    # Build day-pair structure for two-column display
-    # day_cols = [ {day_num, col_left: [matches], col_right: [matches]}, ... ]
-    day_cols = []
-    if schedule:
-        # Group matches by pool-pair (every 2 pools = 1 day)
-        pool_pair_matches = {}  # (pool_a_pk, pool_b_pk) → [matches in order]
-        pair_order = []
-        for i in range(0, len(group_pools), 2):
-            left_pool  = group_pools[i]
-            right_pool = group_pools[i+1] if i+1 < len(group_pools) else None
-            key = (left_pool.pk, right_pool.pk if right_pool else None)
-            pool_pair_matches[key] = {"left": [], "right": [], "day": i//2 + 1,
-                                      "left_name": left_pool.name,
-                                      "right_name": right_pool.name if right_pool else None}
-            pair_order.append(key)
-
-        for m in schedule:
-            for key in pair_order:
-                left_pk, right_pk = key
-                if m.pool_id == left_pk:
-                    pool_pair_matches[key]["left"].append(m)
-                    break
-                elif right_pk and m.pool_id == right_pk:
-                    pool_pair_matches[key]["right"].append(m)
-                    break
-
-        # Interleave left/right into display rows
-        for key in pair_order:
-            d    = pool_pair_matches[key]
-            left  = d["left"]
-            right = d["right"]
-            rows  = []
-            for i in range(max(len(left), len(right))):
-                rows.append({
-                    "left":  left[i]  if i < len(left)  else None,
-                    "right": right[i] if i < len(right) else None,
-                })
-            day_cols.append({
-                "day":        d["day"],
-                "left_pool":  d["left_name"],
-                "right_pool": d["right_name"],
-                "rows":       rows,
-            })
-
-    return render(request, "fixture_draw.html", {
-        "group_pools":     group_pools,
-        "pools_finalised": pools_finalised,
-        "schedule":        schedule,
-        "pools_status":    pools_status,
-        "day_cols":        day_cols,
-        "ts":              ts,
-        "msg":             msg,
-    })
-
 
 @login_required
 def generate_fixtures(request):
     """Generate all pool fixtures in interleaved order (auto, no spin wheel)."""
-    from auction.services.fixture_service import generate_pool_matches, get_interleaved_schedule
     if request.method == "POST":
         pools = TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).order_by("order")
         total = 0
@@ -1596,8 +1354,8 @@ def generate_fixtures(request):
     return redirect("/fixtures/pools/")
 
 
-@login_required
 @csrf_exempt
+@login_required
 def fixture_record_result(request):
     """Record a match result."""
     if request.method != "POST":
@@ -1608,7 +1366,13 @@ def fixture_record_result(request):
         match = Match.objects.get(pk=match_id)
         if winner_id == "draw":
             match.winner = None
-            match.notes  = "No result / Draw"
+            # Preserve round:N prefix so interleaved schedule ordering is intact
+            existing = match.notes or ""
+            if existing.startswith("round:"):
+                round_part  = existing.split("|")[0].rstrip()
+                match.notes = round_part + " | draw"
+            else:
+                match.notes = "draw"
         else:
             match.winner = Team.objects.get(team_serial_number=int(winner_id))
         match.status = Match.STATUS_COMPLETED
@@ -1624,23 +1388,47 @@ def fixture_record_result(request):
 
 from .services.report_service import (
     all_players_pdf, auction_players_pdf, teamwise_pdf,
-    all_players_excel, auction_players_excel, teamwise_excel
 )
+
+# Excel exports require openpyxl — check at startup so report_download
+# can return a clean 501 immediately rather than a cryptic ImportError.
+try:
+    import openpyxl as _openpyxl  # noqa: F401
+    from .services.report_service import (
+        all_players_excel, auction_players_excel, teamwise_excel,
+    )
+    EXCEL_AVAILABLE = True
+except ImportError:
+    EXCEL_AVAILABLE = False
 
 
 @login_required
 def reports_page(request):
     ts = TournamentSettings.get()
     role_choices = [("AR","All Rounders"),("BAT","Batsmen"),("BOWL","Bowlers"),("PLY","Players")]
-    return render(request, "reports.html", {"ts": ts, "role_choices": role_choices})
+    return render(request, "reports.html", {
+        "ts":              ts,
+        "role_choices":    role_choices,
+        "excel_available": EXCEL_AVAILABLE,
+    })
 
 
 @login_required
 def report_download(request):
-    report_type = request.GET.get("type", "all_players")
-    fmt         = request.GET.get("fmt", "pdf")
-    role_filter = request.GET.get("role") or None
+    report_type   = request.GET.get("type", "all_players")
+    fmt           = request.GET.get("fmt", "pdf")
+    role_filter   = request.GET.get("role") or None
     status_filter = request.GET.get("status") or None
+
+    # Gate Excel exports — openpyxl is not installed in this environment.
+    if fmt == "xlsx" and not EXCEL_AVAILABLE:
+        return HttpResponse(
+            "Excel export is unavailable — openpyxl is not installed. "
+            "Download the PDF version instead, or install openpyxl>=3.1 "
+            "and redeploy.",
+            status=501,
+            content_type="text/plain",
+        )
 
     try:
         if report_type == "all_players":
@@ -1680,11 +1468,6 @@ def report_download(request):
         response["Content-Disposition"] = f'attachment; filename="{fname}"'
         return response
 
-    except ImportError as e:
-        return HttpResponse(
-            f"Missing dependency: {e}<br>Run: pip install openpyxl",
-            status=500, content_type="text/html"
-        )
     except Exception as e:
         error_logger.error(f"report_download error: {e}\n{traceback.format_exc()}")
         return HttpResponse(f"Report error: {e}", status=500)

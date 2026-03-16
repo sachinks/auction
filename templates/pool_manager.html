@@ -139,7 +139,7 @@
           <div style="color:#ccc;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04);">{{ team.name }}</div>
           {% endfor %}
         </div>
-        <div id="pcnt_{{ pi.pool.pk }}" style="font-size:10px;color:#555;margin-top:5px;">{{ pi.pool.teams.count }}/{{ teams_per_pool }}</div>
+        <div id="pcnt_{{ pi.pool.pk }}" style="font-size:10px;color:#555;margin-top:5px;">{{ pi.pool.teams.count }}/{{ pi.pool.teams_per_pool }}</div>
       </div>
       {% endif %}{% endfor %}
     </div>

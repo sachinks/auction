@@ -1,60 +1,88 @@
 {% extends "base.html" %}
-
 {% block content %}
 
-<div class="card" style="max-width:600px;margin:auto;">
+<div class="card" style="max-width:560px;margin:40px auto;padding:32px;">
 
-<h2 style="text-align:center;">Start Auction</h2>
+  <div style="text-align:center;margin-bottom:28px;">
+    <div style="font-size:32px;margin-bottom:8px;">⚡</div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:6px;">Start Auction</h2>
+    <div style="font-size:12px;color:#555;">Configure the tournament settings. Defaults are pre-filled.</div>
+  </div>
 
-<form method="POST" action="/auction/start/">
+  <form method="POST" action="/auction/start/">
+    {% csrf_token %}
 
-{% csrf_token %}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Total Points</div>
+        <input type="number" name="total_points" value="10000" min="1000" required
+          style="width:100%;text-align:center;font-size:18px;font-weight:700;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Bidding Slots</div>
+        <input type="number" name="bidding_slots" value="11" min="1" required
+          style="width:100%;text-align:center;font-size:18px;font-weight:700;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Max Squad Size</div>
+        <input type="number" name="max_squad_size" value="13" min="1" required
+          style="width:100%;text-align:center;font-size:18px;font-weight:700;">
+      </div>
+    </div>
 
-<br>
+    <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Base Prices per Role</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+      <div>
+        <div style="font-size:10px;color:#f39c12;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;text-align:center;">AR</div>
+        <input type="number" name="base_price_AR" value="1000" min="0" required
+          style="width:100%;text-align:center;font-size:16px;font-weight:700;color:#f39c12;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#3498db;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;text-align:center;">BAT</div>
+        <input type="number" name="base_price_BAT" value="400" min="0" required
+          style="width:100%;text-align:center;font-size:16px;font-weight:700;color:#3498db;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;text-align:center;">BOWL</div>
+        <input type="number" name="base_price_BOWL" value="400" min="0" required
+          style="width:100%;text-align:center;font-size:16px;font-weight:700;color:#2ecc71;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;text-align:center;">PLY</div>
+        <input type="number" name="base_price_PLY" value="100" min="0" required
+          style="width:100%;text-align:center;font-size:16px;font-weight:700;color:#aaa;">
+      </div>
+    </div>
 
-<label>Total Points</label><br>
-<input type="number" name="total_points" required>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Category Order</div>
+      <input type="text" name="category_order" value="AR,BAT,BOWL,PLY"
+        style="width:100%;text-align:center;font-size:14px;font-weight:700;letter-spacing:2px;">
+      <div style="font-size:10px;color:#444;margin-top:4px;">Comma-separated. e.g. AR,BAT,BOWL,PLY</div>
+    </div>
 
-<br><br>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;">
+      <div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Max Rebid Attempts (PLY)</div>
+        <input type="number" name="max_rebid_attempts" value="3" min="1"
+          style="width:100%;text-align:center;font-size:16px;font-weight:700;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Ready to auction</div>
+        <div style="padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;text-align:center;">
+          <span style="font-size:16px;font-weight:700;color:#2ecc71;">{{ player_count|default:"0" }}</span>
+          <span style="font-size:11px;color:#555;"> players</span><br>
+          <span style="font-size:14px;font-weight:700;color:#74a9f5;">{{ team_count|default:"0" }}</span>
+          <span style="font-size:11px;color:#555;"> teams</span>
+        </div>
+      </div>
+    </div>
 
-<label>Bidding Slots</label><br>
-<input type="number" name="bidding_slots" required>
-
-<br><br>
-
-<label>Max Squad Size</label><br>
-<input type="number" name="max_squad_size" required>
-
-<br><br>
-
-<h3>Base Prices</h3>
-
-<label>All Rounder (AR)</label><br>
-<input type="number" name="base_price_AR" required>
-
-<br><br>
-
-<label>Batsman (BAT)</label><br>
-<input type="number" name="base_price_BAT" required>
-
-<br><br>
-
-<label>Bowler (BOWL)</label><br>
-<input type="number" name="base_price_BOWL" required>
-
-<br><br>
-
-<label>Player (PLY)</label><br>
-<input type="number" name="base_price_PLY" required>
-
-<br><br>
-
-<button style="padding:12px;width:100%;background:green;color:white;font-size:18px;">
-Start Auction
-</button>
-
-</form>
+    <button type="submit"
+      style="width:100%;background:linear-gradient(135deg,#27ae60,#1e8449);color:#fff;padding:14px;border-radius:8px;font-size:16px;font-weight:800;">
+      ⚡ Start Auction
+    </button>
+  </form>
 
 </div>
-
 {% endblock %}

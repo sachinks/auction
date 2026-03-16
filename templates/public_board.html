@@ -454,7 +454,7 @@ body::before{
   <div style="margin-bottom:18px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
       <div style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#000;font-size:10px;font-weight:800;padding:3px 12px;border-radius:20px;letter-spacing:1px;">
-        DAY {{ forloop.counter }}
+        {% widthratio forloop.counter0 2 1 as day_num %}DAY {{ day_num|add:1 }}
       </div>
       <div style="height:1px;flex:1;background:rgba(255,255,255,0.05);"></div>
     </div>
