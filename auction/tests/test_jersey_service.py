@@ -28,12 +28,12 @@ class TestJerseyModel(TestCase):
             jersey_number=45,
             size_number=40,
             size_text="M",
-            sponsor="KPL",
+            sponsor="Sachin Kolige Premier League",
         )
         self.assertEqual(j.jersey_name, "ROHIT")
         self.assertEqual(j.jersey_number, 45)
         self.assertEqual(j.size_text, "M")
-        self.assertEqual(j.sponsor, "KPL")
+        self.assertEqual(j.sponsor, "Sachin Kolige Premier League")
 
     def test_jersey_nullable_fields(self):
         j = Jersey.objects.create(player=self.player, jersey_name="TEST")
@@ -94,7 +94,7 @@ class TestJerseyServicePDF(TestCase):
             Jersey.objects.create(
                 player=p, jersey_name=name.upper(),
                 jersey_number=p.serial_number,
-                size_text="L", sponsor="KPL",
+                size_text="L", sponsor="Sachin Kolige Premier League",
             )
 
     def test_pdf_export_returns_bytes(self):

@@ -133,7 +133,7 @@ class TournamentSettings(models.Model):
     Independent of TournamentConfig which is only created on auction start.
     """
     tournament_name = models.CharField(
-        max_length=100, default="KPL Auction",
+        max_length=100, default="Sachin Kolige Premier League",
         help_text="Shown on public board and all pages"
     )
     auction_date = models.DateTimeField(null=True, blank=True)
@@ -148,7 +148,7 @@ class TournamentSettings(models.Model):
 
     @classmethod
     def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1, defaults={"tournament_name": "KPL Auction"})
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={"tournament_name": "Sachin Kolige Premier League"})
         return obj
 
 
@@ -318,7 +318,7 @@ class ExtraJerseyMember(models.Model):
         Team, null=True, blank=True, on_delete=models.SET_NULL, related_name="extra_members"
     )
 
-    # For organisers — group label (e.g. "KPL Organising Committee")
+    # For organisers — group label (e.g. "Sachin Kolige Premier League Organising Committee")
     group_name    = models.CharField(max_length=100, blank=True, default="Organisers")
 
     def __str__(self):

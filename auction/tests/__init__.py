@@ -1,1 +1,1 @@
-# Test package for KPL auction engine
+# Test package for Sachin Kolige Premier League auction engine

@@ -1,5 +1,5 @@
 """
-Shared fixtures for all KPL tests.
+Shared fixtures for all Sachin Kolige Premier League tests.
 """
 import pytest
 from auction.models import (

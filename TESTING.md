@@ -1,9 +1,9 @@
-# KPL — Complete Testing Guide
+# Sachin Kolige Premier League — Complete Testing Guide
 
-This file covers every feature of the KPL auction engine:
+This file covers every feature of the Sachin Kolige Premier League auction engine:
 automated pytest tests, manual browser tests, and URL verification.
 
-Run everything from the project root `/path/to/kpl/`.
+Run everything from the project root `/path/to/Sachin Kolige Premier League/`.
 
 ---
 
@@ -531,7 +531,7 @@ Test auto-generation (no short_name set):
    - Jersey #: 7
    - Size #: 40
    - Size Label: L
-   - Sponsor: "KPL 2025"
+   - Sponsor: "Sachin Kolige Premier League 2025"
    - Click **+ Add Jersey**
    - ✅ Jersey appears in table
 3. Sort by **#Number** → ✅ Jerseys ordered by jersey number

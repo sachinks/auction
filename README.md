@@ -1,4 +1,4 @@
-# ⚡ KPL — Kolige Premier League Auction Engine
+# ⚡ Sachin Kolige Premier League Auction Engine
 
 A full-featured cricket auction and tournament management system built with Django.  
 Handles team auctions, pool-based league fixtures, jersey management, and live public dashboards.
@@ -28,7 +28,7 @@ Handles team auctions, pool-based league fixtures, jersey management, and live p
 - Import players (name, role, phone, place) or teams (name, short\_name, owners)
 - **Demo data loader** — 4 bundled CSVs committed to the repo, loadable from the UI with one click (works on Render too)
   - `short_players.csv` — 30 players for quick testing
-  - `short_teams.csv` — 4 KPL local teams
+  - `short_teams.csv` — 4 Sachin Kolige Premier League local teams
   - `long_players.csv` — 249 real IPL player names
   - `long_teams.csv` — 16 teams (10 IPL franchises + 6 local)
 

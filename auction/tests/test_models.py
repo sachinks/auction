@@ -129,10 +129,10 @@ class TestTournamentSettings(TestCase):
 
     def test_get_returns_same_instance(self):
         ts1 = TournamentSettings.get()
-        ts1.tournament_name = "KPL 2025"
+        ts1.tournament_name = "Sachin Kolige Premier League 2025"
         ts1.save()
         ts2 = TournamentSettings.get()
-        self.assertEqual(ts2.tournament_name, "KPL 2025")
+        self.assertEqual(ts2.tournament_name, "Sachin Kolige Premier League 2025")
 
 
 # ─────────────────────────────────────────────────────────────
