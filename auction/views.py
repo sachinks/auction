@@ -20,7 +20,7 @@ from .services.fixture_service import (
     create_group_stage, create_knockout_stage, get_interleaved_schedule,
     generate_pool_matches, add_team_to_pool, remove_team_from_pool,
     next_pool_for_draw, pool_undrawn_pairs, create_interleaved_match,
-    _renumber_matches,
+    _renumber_matches, generate_next_match,
 )
 
 from config.logging_config import auction_logger, error_logger, system_logger
@@ -1352,6 +1352,21 @@ def generate_fixtures(request):
             total += created
         return redirect(f"/fixtures/pools/?msg=Generated+{total}+matches")
     return redirect("/fixtures/pools/")
+
+
+@csrf_exempt
+@login_required
+def fixture_spin_next(request):
+    """Generate one match at a time for the spin-reveal draw ceremony."""
+    if request.method != "POST":
+        return JsonResponse({"status": "invalid"})
+    try:
+        result = generate_next_match()
+        if result is None:
+            return JsonResponse({"status": "done"})
+        return JsonResponse({"status": "ok", **result})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)})
 
 
 @csrf_exempt

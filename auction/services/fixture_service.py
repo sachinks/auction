@@ -186,6 +186,67 @@ def generate_pool_matches(pool_id):
     return created, skipped
 
 
+def generate_next_match():
+    """
+    Generate the next single match in round-robin order across all group pools.
+    Follows the same circle-method round-robin logic as generate_pool_matches,
+    but creates only one match at a time for spin-reveal draws.
+    Returns a dict with match details, or None if all matches already generated.
+    """
+    pools = TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).order_by("order")
+
+    for pool in pools:
+        teams = list(pool.teams.all().order_by("name"))
+        rounds = _round_robin_rounds(teams)
+        for round_num, round_matches in enumerate(rounds, start=1):
+            for t1, t2 in round_matches:
+                exists = (
+                    Match.objects.filter(team1=t1, team2=t2, pool=pool).exists() or
+                    Match.objects.filter(team1=t2, team2=t1, pool=pool).exists()
+                )
+                if not exists:
+                    next_num = (Match.objects.count() or 0) + 1
+                    m = Match.objects.create(
+                        match_number=next_num,
+                        round_label=f"Pool {pool.name}",
+                        team1=t1, team2=t2, pool=pool,
+                        notes=f"round:{round_num}",
+                    )
+                    # Count how many matches remain after this one
+                    remaining = _count_ungenerated_matches(pools)
+                    try:
+                        _renumber_matches()
+                        m.refresh_from_db()
+                    except Exception:
+                        pass
+                    return {
+                        "match_id": m.pk,
+                        "match_number": m.match_number,
+                        "team1": t1.name,
+                        "team2": t2.name,
+                        "pool": pool.name,
+                        "remaining": remaining,
+                    }
+    return None
+
+
+def _count_ungenerated_matches(pools):
+    """Count total matches not yet generated across given pools."""
+    total = 0
+    for pool in pools:
+        teams = list(pool.teams.all().order_by("name"))
+        rounds = _round_robin_rounds(teams)
+        for _, round_matches in enumerate(rounds):
+            for t1, t2 in round_matches:
+                exists = (
+                    Match.objects.filter(team1=t1, team2=t2, pool=pool).exists() or
+                    Match.objects.filter(team1=t2, team2=t1, pool=pool).exists()
+                )
+                if not exists:
+                    total += 1
+    return total
+
+
 def _renumber_matches():
     """Renumber matches in interleaved schedule order so M1,M2,M3... match the display."""
     try:

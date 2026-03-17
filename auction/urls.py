@@ -55,6 +55,7 @@ urlpatterns = [
 
     # ── Fixture draw + results ───────────────────────────────
     path("fixtures/draw/generate/",      views.generate_fixtures,     name="generate_fixtures"),
+    path("fixtures/draw/spin-next/",     views.fixture_spin_next,     name="fixture_spin_next"),
     path("fixtures/draw/reset/",         views.fixtures_reset,        name="fixtures_reset"),
     path("fixtures/draw/result/",        views.fixture_record_result, name="fixture_record_result"),
 
