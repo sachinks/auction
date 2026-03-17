@@ -54,6 +54,7 @@ urlpatterns = [
     path("fixtures/knockout/",           views.knockout_create,       name="knockout_create"),
 
     # ── Fixture draw + results ───────────────────────────────
+    path("fixtures/draw/",               views.fixture_draw_view,     name="fixture_draw"),
     path("fixtures/draw/generate/",      views.generate_fixtures,     name="generate_fixtures"),
     path("fixtures/draw/spin-next/",     views.fixture_spin_next,     name="fixture_spin_next"),
     path("fixtures/draw/reset/",         views.fixtures_reset,        name="fixtures_reset"),

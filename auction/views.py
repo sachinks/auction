@@ -1083,6 +1083,68 @@ def pool_manager(request):
     })
 
 
+@login_required
+def fixture_draw_view(request):
+    """Dedicated page for fixture generation and the spin-reveal ceremony."""
+    pools_status = all_pools_status()
+    group_pools  = TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).order_by("order")
+    ts           = TournamentSettings.get()
+    
+    # Check if all teams are in pools
+    total_teams = Team.objects.count()
+    teams_in_pools = PoolTeam.objects.filter(pool__stage=TournamentPool.STAGE_GROUP).count()
+    pools_finalised = (total_teams > 0 and teams_in_pools == total_teams)
+    
+    schedule = get_interleaved_schedule() if pools_finalised else []
+    
+    # Day-column structure (reused from pool_manager)
+    day_cols = []
+    pools_list = list(group_pools)
+    if schedule and pools_list:
+        pool_match_map = {}
+        for p in pools_list:
+            rounds_map = {}
+            for m in p.matches.select_related("team1","team2","winner").order_by("created_at"):
+                rnum = 1
+                if m.notes and m.notes.startswith("round:"):
+                    try: rnum = int(m.notes.split(":")[1])
+                    except: pass
+                rounds_map.setdefault(rnum, []).append(m)
+            pool_match_map[p.pk] = [rounds_map[r] for r in sorted(rounds_map)]
+
+        for day_idx in range(0, len(pools_list), 2):
+            lp = pools_list[day_idx]
+            rp = pools_list[day_idx + 1] if day_idx + 1 < len(pools_list) else None
+            left_rounds  = pool_match_map.get(lp.pk, [])
+            right_rounds = pool_match_map.get(rp.pk, []) if rp else []
+            max_rounds   = max(len(left_rounds), len(right_rounds))
+            rows = []
+            for ri in range(max_rounds):
+                lr = left_rounds[ri]  if ri < len(left_rounds)  else []
+                rr = right_rounds[ri] if ri < len(right_rounds) else []
+                for mi in range(max(len(lr), len(rr))):
+                    rows.append({
+                        "left":  lr[mi] if mi < len(lr) else None,
+                        "right": rr[mi] if mi < len(rr) else None,
+                    })
+            day_cols.append({
+                "day":        day_idx // 2 + 1,
+                "left_pool":  lp.name,
+                "right_pool": rp.name if rp else None,
+                "rows":       rows,
+            })
+
+    msg = request.GET.get("msg", "")
+    return render(request, "fixture_draw.html", {
+        "pools_status":    pools_status,
+        "pools_finalised": pools_finalised,
+        "schedule":        schedule,
+        "day_cols":        day_cols,
+        "ts":              ts,
+        "msg":             msg,
+    })
+
+
 @csrf_exempt
 @login_required
 def pool_generate_all(request):
