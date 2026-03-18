@@ -31,16 +31,8 @@ if db_path.exists():
     db_path.unlink()
     print("✓ Removed db.sqlite3")
 
-# Wipe and regenerate migrations
-from pathlib import Path
+# Run migrations
 from django.core.management import call_command
-
-migrations_dir = settings.BASE_DIR / "auction" / "migrations"
-deleted = [f.unlink() or f.name for f in migrations_dir.glob("*.py") if f.name != "__init__.py"]
-if deleted:
-    print(f"✓ Cleared migrations: {', '.join(deleted)}")
-
-call_command("makemigrations", "auction", verbosity=1)
 call_command("migrate", verbosity=1)
 
 # Create superuser — always force the password from .env
