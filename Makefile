@@ -38,14 +38,12 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-## Full fresh start: clean → reset → test (then run: make run, make logs separately)
+## Full fresh start: clean → reset (run make test separately if needed)
 fresh:
 	@echo "==> Cleaning..."
 	@$(MAKE) clean
 	@echo "==> Resetting DB..."
 	@$(MAKE) reset
-	@echo "==> Running tests..."
-	@$(MAKE) test
 	@echo "==> Done! Now run: .venv/bin/python manage.py runserver (and make logs in another terminal)"
 
 ## Show available commands
@@ -58,5 +56,5 @@ help:
 	@echo "  make shell    — Django shell"
 	@echo "  make logs     — tail all log files"
 	@echo "  make clean    — remove .pyc and __pycache__"
-	@echo "  make fresh    — clean + reset + test + server + logs (full restart)"
+	@echo "  make fresh    — clean + reset (wipe DB, regenerate migrations)"
 	@echo ""
