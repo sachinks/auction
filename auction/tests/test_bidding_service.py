@@ -28,31 +28,34 @@ class TestBiddingValidation(TestCase):
         _setup_state()
 
     def test_below_base_price_fails(self):
-        err = BiddingService().validate_bid(self.player, self.team, 500)
+        err, is_below = BiddingService().validate_bid(self.player, self.team, 500)
         self.assertIsNotNone(err)
         self.assertIn("base price", err)
+        self.assertTrue(is_below)
 
     def test_exceeds_wallet_fails(self):
-        err = BiddingService().validate_bid(self.player, self.team, 6000)
+        err, is_below = BiddingService().validate_bid(self.player, self.team, 6000)
         self.assertIsNotNone(err)
         self.assertIn("exceeds", err)
 
     def test_exact_base_price_passes(self):
-        err = BiddingService().validate_bid(self.player, self.team, 1000)
+        err, is_below = BiddingService().validate_bid(self.player, self.team, 1000)
         self.assertIsNone(err)
+        self.assertFalse(is_below)
 
     def test_above_base_price_passes(self):
-        err = BiddingService().validate_bid(self.player, self.team, 2500)
+        err, is_below = BiddingService().validate_bid(self.player, self.team, 2500)
         self.assertIsNone(err)
+        self.assertFalse(is_below)
 
     def test_bat_base_price_check(self):
         p   = Player.objects.create(name="Kohli", role="BAT", base_price=400)
-        err = BiddingService().validate_bid(p, self.team, 300)
+        err, _ = BiddingService().validate_bid(p, self.team, 300)
         self.assertIsNotNone(err)
 
     def test_ply_base_price_check(self):
         p   = Player.objects.create(name="PLY1", role="PLY", base_price=100)
-        err = BiddingService().validate_bid(p, self.team, 50)
+        err, _ = BiddingService().validate_bid(p, self.team, 50)
         self.assertIsNotNone(err)
 
 
@@ -145,6 +148,7 @@ class TestMarkUnsold(TestCase):
         p   = Player.objects.create(name="PLY", role="PLY", base_price=100)
         svc = BiddingService()
         for _ in range(3):
+            p.refresh_from_db()
             p.status = Player.STATUS_AVAILABLE
             p.save()
             s = AuctionState.get()

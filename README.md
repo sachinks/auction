@@ -120,6 +120,33 @@ CSVService().import_players('sample_data/short_players.csv')
 
 ---
 
+## Makefile Shortcuts
+
+A `Makefile` is included for common dev tasks. Instead of typing long commands, just use `make <command>`.
+
+| Command | What it does |
+|---------|-------------|
+| `make reset` | Wipe DB, re-migrate, recreate superuser (dev only) |
+| `make migrate` | Run migrations |
+| `make test` | Run all pytest tests — **auto-skipped on Render/production** |
+| `make check` | Django config/syntax check (fast, no DB needed) |
+| `make shell` | Open Django shell |
+| `make logs` | Tail all 3 log files live (`auction`, `system`, `error`) |
+| `make clean` | Delete `.pyc` files and `__pycache__` folders |
+| `make fresh` | **Full restart** — clean → reset → test |
+| `make help` | Show all available commands |
+
+**How `make test` works:**
+```bash
+make test
+# Runs pytest locally (RENDER not set)
+# Automatically skips on Render where RENDER=true
+```
+
+> No internet or data usage — all commands run locally on your machine.
+
+---
+
 ## Running Tests
 
 ```bash

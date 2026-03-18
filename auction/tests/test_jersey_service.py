@@ -98,12 +98,14 @@ class TestJerseyServicePDF(TestCase):
             )
 
     def test_pdf_export_returns_bytes(self):
-        pdf = JerseyService().export_pdf()
-        self.assertIsInstance(pdf, (bytes, memoryview))
+        buf = JerseyService().export_pdf()
+        pdf = buf.getvalue()
+        self.assertIsInstance(pdf, bytes)
         self.assertGreater(len(pdf), 100)
 
     def test_pdf_starts_with_pdf_header(self):
-        pdf = bytes(JerseyService().export_pdf())
+        buf = JerseyService().export_pdf()
+        pdf = buf.getvalue()
         self.assertTrue(pdf.startswith(b"%PDF"), "PDF bytes must start with %PDF")
 
     def test_pdf_no_players_does_not_crash(self):

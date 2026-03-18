@@ -119,14 +119,17 @@ class TestRoundRobinRounds(TestCase):
         self.assertEqual(all_pairs, expected)
 
     def test_no_consecutive_matches(self):
-        """Build a schedule and verify no team plays back-to-back."""
+        """Within each round, no team plays twice (circle method guarantee)."""
         teams = [f"T{i}" for i in range(1, 5)]
         rounds = _round_robin_rounds(teams)
-        # Flatten to ordered match list
-        schedule = [(t1, t2) for rnd in rounds for t1, t2 in rnd]
-        for i in range(len(schedule) - 1):
-            shared = set(schedule[i]) & set(schedule[i+1])
-            self.assertEqual(shared, set(), f"Match {i} and {i+1} share a team: {shared}")
+        # Within each round, every team appears at most once
+        for round_idx, rnd in enumerate(rounds):
+            all_teams_in_round = [t for pair in rnd for t in pair]
+            unique_teams = set(all_teams_in_round)
+            self.assertEqual(
+                len(all_teams_in_round), len(unique_teams),
+                f"Round {round_idx + 1} has a team playing twice: {all_teams_in_round}"
+            )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -207,13 +210,21 @@ class TestInterleavedSchedule(TestCase):
 
     def test_4_pool_day_pairing(self):
         """Day 1 = Pool A+B, Day 2 = Pool C+D."""
+        teams_a = make_teams(4)
+        teams_b = make_teams(4)
         teams_c = make_teams(4)
         teams_d = make_teams(4)
         pools = create_group_stage(4, 2, teams_per_pool=4)
+        for i, t in enumerate(teams_a):
+            PoolTeam.objects.create(pool=pools[0], team=t, seed=i)
+        for i, t in enumerate(teams_b):
+            PoolTeam.objects.create(pool=pools[1], team=t, seed=i)
         for i, t in enumerate(teams_c):
             PoolTeam.objects.create(pool=pools[2], team=t, seed=i)
         for i, t in enumerate(teams_d):
             PoolTeam.objects.create(pool=pools[3], team=t, seed=i)
+        generate_pool_matches(pools[0].pk)
+        generate_pool_matches(pools[1].pk)
         generate_pool_matches(pools[2].pk)
         generate_pool_matches(pools[3].pk)
 

@@ -64,7 +64,7 @@ class CSVService:
                     if not self.valid_phone(phone):
                         errors.append(f"Row {i} ({name}): invalid phone '{phone}'")
                         continue
-                    if not dry_run and Player.objects.filter(name=name, place=place).exists():
+                    if not dry_run and Player.objects.filter(name=name).exists():
                         errors.append(f"Row {i} ({name}): duplicate player")
                         continue
 

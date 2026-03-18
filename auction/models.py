@@ -115,6 +115,10 @@ class Player(models.Model):
 
         # Deduct from new team if now SOLD
         if new_status == self.STATUS_SOLD and new_team and new_price:
+            # If prev_team and new_team are the same DB row, refresh so we
+            # don't overwrite the refund just applied above.
+            if prev_team and prev_team.pk == new_team.pk:
+                new_team.refresh_from_db()
             new_team.remaining_points -= new_price
             new_team.save()
 
@@ -275,9 +279,9 @@ class Jersey(models.Model):
 
     player        = models.ForeignKey(Player, on_delete=models.CASCADE)
     jersey_name   = models.CharField(max_length=100)
-    jersey_number = models.IntegerField()
-    size_number   = models.IntegerField()
-    size_text     = models.CharField(max_length=10)
+    jersey_number = models.IntegerField(null=True, blank=True)
+    size_number   = models.IntegerField(null=True, blank=True)
+    size_text     = models.CharField(max_length=10, blank=True)
     sponsor       = models.CharField(max_length=100, blank=True)
 
     def __str__(self):

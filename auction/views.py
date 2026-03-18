@@ -271,7 +271,7 @@ def next_player(request):
 @login_required
 def sell_player(request):
     if request.method != "POST":
-        return JsonResponse({"status": "invalid"})
+        return JsonResponse({"status": "error", "message": "POST required"})
 
     service   = BiddingService()
     player_id = request.POST.get("player_id")
