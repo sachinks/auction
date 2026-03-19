@@ -15,6 +15,7 @@ migrate:
 test:
 	@if [ "$$RENDER" != "true" ]; then \
 		.venv/bin/python manage.py makemigrations --check --dry-run > /dev/null 2>&1 || (find auction/migrations -name "*.py" ! -name "__init__.py" -delete && .venv/bin/python manage.py makemigrations auction); \
+		.venv/bin/python -m flake8 auction/ && \
 		.venv/bin/pytest auction/tests/ -v; \
 	else \
 		echo "Skipping tests on production (RENDER=true)"; \

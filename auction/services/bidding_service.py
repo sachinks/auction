@@ -1,5 +1,4 @@
 import logging
-import traceback
 
 from auction.models import Player, Team, AuctionAction, AuctionState
 from auction.services.auction_engine import AuctionEngine

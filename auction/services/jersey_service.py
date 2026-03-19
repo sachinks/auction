@@ -136,12 +136,6 @@ class JerseyService:
         return title, sub, team, cat
 
     def _jersey_table(self, rows):
-        ROLE_COLORS = {
-            "AR":   colors.HexColor("#8e44ad"),
-            "BAT":  colors.HexColor("#2980b9"),
-            "BOWL": colors.HexColor("#c0392b"),
-            "PLY":  colors.HexColor("#27ae60"),
-        }
         col_w = [8*mm, 42*mm, 30*mm, 18*mm, 16*mm, 35*mm]
         header = [["#", "Player", "Jersey Name", "No.", "Size", "Sponsor"]]
         data   = header + rows

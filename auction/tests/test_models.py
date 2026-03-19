@@ -2,11 +2,10 @@
 Tests for model behaviour — Player.save() point deductions,
 Team.get_short(), TournamentSettings singleton, etc.
 """
-import pytest
 from django.test import TestCase
 from auction.models import (
     Player, Team, TournamentConfig, TournamentSettings,
-    TournamentPool, PoolTeam, Match,
+    TournamentPool,
 )
 
 

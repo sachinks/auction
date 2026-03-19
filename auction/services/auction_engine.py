@@ -82,9 +82,14 @@ class AuctionEngine:
                 state.transition_message  = ""
                 state.save()
                 return None
+            # If a player is already staged (rebid-pass announcement), just clear
+            # the overlay — do NOT re-pick a new player.
+            player_already_staged = state.current_player is not None
             state.awaiting_transition = False
             state.transition_message  = ""
             state.save()
+            if player_already_staged:
+                return state.current_player
             return self.advance_to_next_player()
         except Exception as e:
             logger.error(f"confirm_transition error: {e}\n{traceback.format_exc()}")
@@ -134,6 +139,26 @@ class AuctionEngine:
                     state.current_player = None
                     state.save()
                     return None
+
+                # ── Rebid pass announcement ──
+                # When in REBID phase and this player's rebid_count is higher
+                # than the last announced pass, show a modal before putting them
+                # on block so the admin sees "Rebid Pass 2", "Rebid Pass 3" etc.
+                if (state.phase == AuctionState.PHASE_REBID
+                        and player.rebid_count > state.announced_rebid_pass):
+                    base = ROUND_DISPLAY.get(state.current_category, state.current_category)
+                    pass_label = player.rebid_count
+                    state.announced_rebid_pass = player.rebid_count
+                    state.current_player       = player
+                    state.awaiting_transition  = True
+                    state.transition_message   = (
+                        f"{base} Rebid — Pass {pass_label}"
+                    )
+                    state.save()
+                    logger.info(
+                        f"Rebid pass {pass_label} announced for {player.name}"
+                    )
+                    return None   # page shows transition overlay; player set after Continue
 
                 state.current_player = player
                 state.save()
@@ -215,10 +240,11 @@ class AuctionEngine:
                     else:
                         # Not all teams have one — rebid for fairness first
                         if unsold_exist:
-                            state.phase               = AuctionState.PHASE_REBID
-                            state.auction_round      += 1
-                            state.awaiting_transition = True
-                            state.transition_message  = f"{base} Pass 1 complete · Starting {base} Rebid"
+                            state.phase                  = AuctionState.PHASE_REBID
+                            state.auction_round         += 1
+                            state.awaiting_transition    = True
+                            state.announced_rebid_pass   = 0
+                            state.transition_message     = f"{base} Pass 1 complete · Starting {base} Rebid"
                             state.save()
                             return
                         # No unsold but still available — Pass 2
@@ -236,10 +262,11 @@ class AuctionEngine:
                 else:
                     # Non-icon (PLY) — just check if any unsold remain
                     if unsold_exist:
-                        state.phase               = AuctionState.PHASE_REBID
-                        state.auction_round      += 1
-                        state.awaiting_transition = True
-                        state.transition_message  = f"{base} Pass 1 complete · Starting {base} Rebid"
+                        state.phase                = AuctionState.PHASE_REBID
+                        state.auction_round       += 1
+                        state.awaiting_transition  = True
+                        state.announced_rebid_pass = 0
+                        state.transition_message   = f"{base} Pass 1 complete · Starting {base} Rebid"
                         state.save()
                         return
 
@@ -264,10 +291,11 @@ class AuctionEngine:
             elif phase == AuctionState.PHASE_MAIN and pass_num == 2:
                 unsold_exist = Player.objects.filter(status=Player.STATUS_UNSOLD, role=cat).exists()
                 if unsold_exist:
-                    state.phase               = AuctionState.PHASE_REBID
-                    state.auction_round      += 1
-                    state.awaiting_transition = True
-                    state.transition_message  = f"{base} Pass 2 complete · Starting {base} Rebid Pass 2"
+                    state.phase                = AuctionState.PHASE_REBID
+                    state.auction_round       += 1
+                    state.awaiting_transition  = True
+                    state.announced_rebid_pass = 0
+                    state.transition_message   = f"{base} Pass 2 complete · Starting {base} Rebid Pass 2"
                     state.save()
                     return
                 self._transition_to_next_category(state, cat, category_order)

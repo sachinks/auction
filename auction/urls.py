@@ -13,6 +13,7 @@ urlpatterns = [
     path("auction/continue/",            views.confirm_transition,    name="confirm_transition"),
     path("auction/sell/",                views.sell_player,           name="sell_player"),
     path("auction/unsold/",              views.unsold_player,         name="unsold_player"),
+    path("auction/spin-round/",          views.spin_round_assign,     name="spin_round_assign"),
     path("auction/not-playing/",         views.not_playing_player,    name="not_playing_player"),
     path("auction/undo/",                views.undo_action,           name="undo_action"),
     path("auction/refresh/",             views.refresh_points,        name="refresh_points"),

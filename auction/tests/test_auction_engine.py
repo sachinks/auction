@@ -2,7 +2,6 @@
 Tests for AuctionEngine: round labels, blocked teams,
 phase transitions, recalculate points.
 """
-import pytest
 from django.test import TestCase
 from auction.models import Player, Team, TournamentConfig, AuctionState
 from auction.services.auction_engine import AuctionEngine, round_label
@@ -313,7 +312,14 @@ class TestFullFlowSimulation(TestCase):
         self.assertTrue(state.awaiting_transition, "REBID transition (pass 2 warning) must fire")
         self.assertEqual(state.phase, AuctionState.PHASE_REBID)
 
-        # Confirm pass-2 transition → REBID starts
+        # Confirm pass-2 transition → REBID starts; engine stages AR1 and announces "Rebid — Pass 1"
+        self._confirm()
+        state = AuctionState.get()
+        self.assertTrue(state.awaiting_transition, "Rebid Pass 1 announcement modal must fire")
+        self.assertIn("Pass 1", state.transition_message)
+        self.assertEqual(state.current_player, self.ar1)  # AR1 staged behind the modal
+
+        # Confirm the "Rebid Pass 1" modal → AR1 is now live on the block
         self._confirm()
         state = AuctionState.get()
         self.assertFalse(state.awaiting_transition)

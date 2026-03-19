@@ -270,7 +270,7 @@ class TestPlayerValidation(TestCase):
             VALID_PLAYER,
             {**VALID_PLAYER, "name": "Bad Role", "role": "GOALIE"},
             {**VALID_PLAYER, "name": "Bad Phone", "phone": "123"},
-            {**VALID_PLAYER, "name": "Empty Name", "name": ""},
+            {**VALID_PLAYER, "name": ""},
             {**VALID_PLAYER, "name": "Kohli", "phone": "9800000002"},
         ]
         with tempfile.TemporaryDirectory() as d:

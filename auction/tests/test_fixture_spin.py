@@ -1,6 +1,7 @@
 from django.test import TestCase
-from auction.models import Team, TournamentPool, Match, PoolTeam
+from auction.models import Team, Match
 from auction.services.fixture_service import create_group_stage, generate_next_match
+
 
 class TestFixtureSpinLogic(TestCase):
     def setUp(self):

@@ -102,4 +102,19 @@
   </div>
 </div>
 
+<script>
+// Default auction_date and match_date inputs to current local datetime when empty
+(function () {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  // Format as "YYYY-MM-DDTHH:mm" (required by datetime-local)
+  const pad = n => String(n).padStart(2, '0');
+  const local = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) +
+                'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  ['auction_date', 'match_date'].forEach(name => {
+    const inp = document.querySelector('input[name="' + name + '"]');
+    if (inp && !inp.value) inp.value = local;
+  });
+})();
+</script>
 {% endblock %}

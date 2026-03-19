@@ -199,7 +199,7 @@ class TestPoolViews(TestCase):
         self.assertEqual(TournamentPool.objects.count(), 0)
 
     def test_spin_assign_auto_assigns(self):
-        pools = create_group_stage(2, 2, teams_per_pool=4)
+        create_group_stage(2, 2, teams_per_pool=4)
         team  = self.teams[0]
         resp  = self.client.post("/fixtures/pools/spin-assign/", {
             "team_id": team.team_serial_number,
@@ -212,7 +212,7 @@ class TestPoolViews(TestCase):
         self.assertTrue(PoolTeam.objects.filter(team=team).exists())
 
     def test_spin_assign_sequential_fills_a_first(self):
-        pools = create_group_stage(2, 2, teams_per_pool=4, assignment_order="sequential")
+        create_group_stage(2, 2, teams_per_pool=4, assignment_order="sequential")
         # Assign first 4 teams — should all go to Pool A
         for team in self.teams[:4]:
             self.client.post("/fixtures/pools/spin-assign/", {

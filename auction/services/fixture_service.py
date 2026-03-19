@@ -10,7 +10,6 @@ Handles:
 """
 import string
 import logging
-import traceback
 from itertools import combinations
 
 from auction.models import Team, Match, TournamentPool, PoolTeam
@@ -600,8 +599,10 @@ def get_interleaved_schedule():
         for m in pool.matches.select_related("team1","team2","winner").order_by("created_at"):
             rnum = 1
             if m.notes and m.notes.startswith("round:"):
-                try: rnum = int(m.notes.split(":")[1])
-                except: pass
+                try:
+                    rnum = int(m.notes.split(":")[1])
+                except Exception:
+                    pass
             rounds_map.setdefault(rnum, []).append(m)
         pool_matches[pool.pk] = [
             rounds_map[r] for r in sorted(rounds_map)

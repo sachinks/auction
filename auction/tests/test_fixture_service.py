@@ -10,7 +10,6 @@ from auction.services.fixture_service import (
     get_interleaved_schedule,
     pool_points_table,
     suggest_pool_config,
-    all_pools_status,
     _round_robin_rounds,
 )
 

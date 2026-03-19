@@ -9,7 +9,9 @@ class Team(models.Model):
 
     team_serial_number = models.AutoField(primary_key=True)
     name               = models.CharField(max_length=100)
-    short_name         = models.CharField(max_length=20, blank=True, help_text="Abbreviation shown on auction buttons e.g. MI, RCB")
+    short_name         = models.CharField(
+        max_length=20, blank=True, help_text="Abbreviation shown on auction buttons e.g. MI, RCB"
+    )
     owners             = models.CharField(max_length=200, blank=True)
     payment_info       = models.IntegerField(default=0)
     notes              = models.TextField(blank=True)
@@ -257,8 +259,12 @@ class AuctionState(models.Model):
     updated_at       = models.DateTimeField(auto_now=True)
 
     # Transition pause mechanism (item 4, 10)
-    awaiting_transition = models.BooleanField(default=False)
-    transition_message  = models.CharField(max_length=200, blank=True)
+    awaiting_transition    = models.BooleanField(default=False)
+    transition_message     = models.CharField(max_length=200, blank=True)
+
+    # Tracks which rebid pass level has already been announced via modal
+    # Reset to 0 each time we enter a fresh REBID phase
+    announced_rebid_pass   = models.IntegerField(default=0)
 
     class Meta:
         verbose_name = "Auction State"

@@ -4,7 +4,7 @@ Shared fixtures for all Sachin Kolige Premier League tests.
 import pytest
 from auction.models import (
     Player, Team, TournamentConfig, AuctionState,
-    TournamentPool, PoolTeam, Match,
+    TournamentPool, PoolTeam,
 )
 
 

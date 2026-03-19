@@ -16,7 +16,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 
 from auction.models import Player, Team, TournamentSettings
 
@@ -153,13 +153,6 @@ def auction_players_pdf(status_filter=None):
     qs = Player.objects.all().order_by("status", "role", "name")
     if status_filter:
         qs = qs.filter(status=status_filter)
-
-    STATUS_LABELS = {
-        "SOLD":        ("Sold", colors.HexColor("#27ae60")),
-        "UNSOLD":      ("Unsold", colors.HexColor("#e67e22")),
-        "NOT_PLAYING": ("Not Playing", colors.HexColor("#95a5a6")),
-        "AVAILABLE":   ("Available", colors.HexColor("#3498db")),
-    }
 
     col_w = [8*mm, 50*mm, 25*mm, 28*mm, 20*mm, 35*mm, 22*mm]
     data  = [["#", "Name", "Role", "Place", "Phone", "Team", "Sold Price"]]
@@ -305,7 +298,7 @@ def _xl_header_style(ws, row, cols, fill_hex="1a1a2e", font_hex="FFFFFF"):
 def all_players_excel(role_filter=None):
     try:
         import openpyxl
-        from openpyxl.styles import PatternFill, Font, Alignment
+        from openpyxl.styles import Font
     except ImportError:
         raise ImportError("openpyxl required for Excel export. pip install openpyxl")
 
@@ -342,7 +335,7 @@ def all_players_excel(role_filter=None):
 def auction_players_excel(status_filter=None):
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font
     except ImportError:
         raise ImportError("openpyxl required")
 
@@ -395,11 +388,10 @@ def auction_players_excel(status_filter=None):
 def teamwise_excel():
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font
     except ImportError:
         raise ImportError("openpyxl required")
 
-    ts = TournamentSettings.get()
     wb = openpyxl.Workbook()
 
     teams = Team.objects.all().order_by("name")

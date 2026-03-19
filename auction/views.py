@@ -6,9 +6,13 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.db.models import Count, Q
 
-from .models import Player, Team, TournamentConfig, TournamentSettings, Jersey, ExtraJerseyMember, AuctionState, AuctionAction, Match, TournamentPool, PoolTeam
-from .services.auction_engine import AuctionEngine, round_label
+from .models import (
+    Player, Team, TournamentConfig, TournamentSettings, Jersey,
+    ExtraJerseyMember, AuctionState, Match, TournamentPool, PoolTeam,
+)
+from .services.auction_engine import AuctionEngine, round_label, ICON_CATEGORIES
 from .services.bidding_service import BiddingService
 from .services.csv_service import CSVService
 from .services.audit_service import AuditService
@@ -16,10 +20,9 @@ from .services.jersey_service import JerseyService
 from .utils.bid_utils import bid_increment
 from .services.fixture_service import (
     all_pools_status, suggest_pool_config, pool_points_table,
-    detect_ties, advance_teams, get_advanced_teams,
+    advance_teams, get_advanced_teams,
     create_group_stage, create_knockout_stage, get_interleaved_schedule,
     generate_pool_matches, add_team_to_pool, remove_team_from_pool,
-    next_pool_for_draw, pool_undrawn_pairs, create_interleaved_match,
     _renumber_matches, generate_next_match,
 )
 
@@ -83,15 +86,22 @@ def public_board(request):
     show_summary = state.phase == AuctionState.PHASE_DONE and not state.is_active
 
     if show_summary:
+        # Build lookup so pool teams get the enriched objects (with sold_players attached)
+        team_map = {t.pk: t for t in teams}
+
         group_pools = TournamentPool.objects.filter(
             stage=TournamentPool.STAGE_GROUP
         ).order_by("order").prefetch_related("teams")
 
         for pool in group_pools:
             pts = pool_points_table(pool)
+            pool_teams = sorted(
+                [team_map.get(t.pk, t) for t in pool.teams.all()],
+                key=lambda t: t.name
+            )
             pools_data.append({
                 "pool":  pool,
-                "teams": list(pool.teams.all().order_by("name")),
+                "teams": pool_teams,
                 "points": pts,
             })
 
@@ -174,6 +184,33 @@ def auction_control(request):
         ).exists()
     )
 
+    _is_icon = state.current_category in ICON_CATEGORIES
+
+    # Spin Round: icon REBID phase, only when players have exhausted rebid attempts
+    _sr_teams = [t for t in teams if not t.is_blocked and t.slots_left > 0]
+    _sr_players = list(
+        Player.objects.filter(
+            status=Player.STATUS_UNSOLD,
+            role=state.current_category,
+            rebid_count__gte=max(0, (config.max_rebid_attempts - 1) if config else 0),
+        )
+    ) if _is_icon and state.phase == AuctionState.PHASE_REBID and config else []
+    show_spin_round  = bool(_is_icon and state.phase == AuctionState.PHASE_REBID
+                            and _sr_players and _sr_teams)
+    spin_round_players = _sr_players if show_spin_round else []
+    spin_round_teams   = _sr_teams   if show_spin_round else []
+
+    # Legacy single-player spin button (non-rebid icon, last rebid chance)
+    _spin_eligible = [t for t in teams if not t.is_blocked and t.slots_left > 0] \
+                     if _is_icon and player and config and not show_spin_round else []
+    show_spin = bool(
+        _is_icon and not show_spin_round
+        and player is not None and config is not None
+        and player.rebid_count >= max(0, config.max_rebid_attempts - 1)
+        and _spin_eligible
+    )
+    spin_teams = _spin_eligible if show_spin else []
+
     # Category base price for status bar
     category_base_price = config.base_price_for_role(state.current_category)
 
@@ -184,6 +221,18 @@ def auction_control(request):
     cat             = state.current_category
     available_count = Player.objects.filter(status=Player.STATUS_AVAILABLE, role=cat).count()
     unsold_count    = Player.objects.filter(status=Player.STATUS_UNSOLD,    role=cat).count()
+
+    # All teams full check (force sell gate + PLY spin warning)
+    all_teams_full = not Team.objects.annotate(
+        sold_count=Count("player", filter=Q(player__status=Player.STATUS_SOLD))
+    ).filter(sold_count__lt=config.bidding_slots).exists()
+
+    # PLY manual spin round
+    _is_ply = state.current_category == "PLY" and state.is_active
+    ply_spin_players = list(Player.objects.filter(
+        role="PLY", status__in=[Player.STATUS_AVAILABLE, Player.STATUS_UNSOLD]
+    )) if _is_ply else []
+    show_ply_spin_btn = bool(_is_ply and ply_spin_players)
 
     return render(request, "auction_control.html", {
         "player":               player,
@@ -197,6 +246,14 @@ def auction_control(request):
         "available_count":      available_count,
         "unsold_count":         unsold_count,
         "ts":                   ts,
+        "show_spin":            show_spin,
+        "spin_teams":           spin_teams,
+        "show_spin_round":      show_spin_round,
+        "spin_round_players":   spin_round_players,
+        "spin_round_teams":     spin_round_teams,
+        "all_teams_full":       all_teams_full,
+        "show_ply_spin_btn":    show_ply_spin_btn,
+        "ply_spin_players":     ply_spin_players,
     })
 
 
@@ -301,7 +358,6 @@ def sell_player(request):
     extra     = request.POST.get("extra") == "true"
 
     try:
-        player = Player.objects.get(serial_number=player_id)
         team   = Team.objects.get(team_serial_number=team_id)
         config = TournamentConfig.objects.first()
 
@@ -321,7 +377,10 @@ def sell_player(request):
         if success:
             return JsonResponse({"status": "ok"})
         elif error and is_below_base:
-            return JsonResponse({"status": "below_base", "message": error})
+            _all_full = not Team.objects.annotate(
+                sold_count=Count("player", filter=Q(player__status=Player.STATUS_SOLD))
+            ).filter(sold_count__lt=config.bidding_slots).exists() if config else False
+            return JsonResponse({"status": "below_base", "message": error, "all_teams_full": _all_full})
         elif error:
             return JsonResponse({"status": "error", "message": error})
         else:
@@ -347,6 +406,32 @@ def unsold_player(request):
             error_logger.error(f"unsold_player error: {e}\n{traceback.format_exc()}")
             return JsonResponse({"status": "error", "message": api_error_response(e)})
     return JsonResponse({"status": "invalid"})
+
+
+# ────────────────────────────────────────────────
+# SPIN ROUND ASSIGN (icon rebid — dual spin board)
+# ────────────────────────────────────────────────
+
+@csrf_exempt
+@login_required
+def spin_round_assign(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required"})
+    try:
+        player_id = request.POST.get("player_id")
+        team_id   = request.POST.get("team_id")
+        config    = TournamentConfig.objects.first()
+        player    = Player.objects.get(serial_number=player_id)
+        base_price = config.base_price_for_role(player.role) if config else 0
+        success, error, _ = BiddingService().sell_player(
+            player_id, team_id, base_price, force=True
+        )
+        if success:
+            return JsonResponse({"status": "ok"})
+        return JsonResponse({"status": "error", "message": error or "Assignment failed"})
+    except Exception as e:
+        error_logger.error(f"spin_round_assign error: {e}\n{traceback.format_exc()}")
+        return JsonResponse({"status": "error", "message": api_error_response(e)})
 
 
 # ────────────────────────────────────────────────
@@ -519,7 +604,10 @@ def upload_csv(request):
                 file_type, filename = FILE_MAP[demo_file]
                 filepath = settings.BASE_DIR / "sample_data" / filename
                 if not filepath.exists():
-                    result = {"error": f"Demo file not found on server: {filename}. Make sure it is committed to the repository."}
+                    result = {
+                        "error": f"Demo file not found on server: {filename}. "
+                                 "Make sure it is committed to the repository."
+                    }
                 else:
                     try:
                         system_logger.info(f"upload_csv load_demo: {demo_file} by {request.user}")
@@ -577,12 +665,10 @@ def upload_csv(request):
 @login_required
 def load_sample_data(request):
     """Load a bundled sample CSV directly — no file upload needed."""
-    import os
     if request.method != "POST":
         return JsonResponse({"status": "invalid"})
     try:
-        dataset  = request.POST.get("dataset")
-        csv_type = request.POST.get("csv_type") # players | teams
+        dataset = request.POST.get("dataset")
 
         allowed = {
             "small_players":  ("players", "small_players.csv"),
@@ -623,7 +709,6 @@ def load_sample_data(request):
 @login_required
 def download_sample_csv(request, name):
     """Serve a sample CSV file as a download."""
-    import os
     allowed = {
         "small_teams":    "small_teams.csv",
         "small_players":  "small_players.csv",
@@ -655,8 +740,6 @@ def download_sample_csv(request, name):
 @login_required
 def debug_state(request):
     """Visit /auction/debug/ to see current auction state."""
-    from django.http import HttpResponse
-    import json
     try:
         state  = AuctionState.get()
         config = TournamentConfig.objects.first()
@@ -707,7 +790,6 @@ def reset_auction(request):
     return redirect("/auction/")
 
 
-
 # ────────────────────────────────────────────────
 # JERSEY PORTAL — admin only, auto-populated by team
 # ────────────────────────────────────────────────
@@ -736,8 +818,10 @@ def jersey_portal(request):
                 _cfg2  = TournamentConfig.objects.first()
                 _smap2 = {}
                 if _cfg2 and _cfg2.size_mapping:
-                    try: _smap2 = _j2.loads(_cfg2.size_mapping)
-                    except: pass
+                    try:
+                        _smap2 = _j2.loads(_cfg2.size_mapping)
+                    except Exception:
+                        pass
                 stxt = _smap2.get(str(snum), "") if snum else ""
                 player = Player.objects.get(serial_number=player_id)
                 if jersey_name or jersey_number is not None:
@@ -771,8 +855,10 @@ def jersey_portal(request):
                 _cfg2 = TournamentConfig.objects.first()
                 _smap2 = {}
                 if _cfg2 and _cfg2.size_mapping:
-                    try: _smap2 = _j2.loads(_cfg2.size_mapping)
-                    except: pass
+                    try:
+                        _smap2 = _j2.loads(_cfg2.size_mapping)
+                    except Exception:
+                        pass
                 stxt = _smap2.get(str(snum), "") if snum else ""
                 team = Team.objects.get(team_serial_number=team_id)
                 if name:
@@ -802,8 +888,10 @@ def jersey_portal(request):
                 _cfg2 = TournamentConfig.objects.first()
                 _smap2 = {}
                 if _cfg2 and _cfg2.size_mapping:
-                    try: _smap2 = _j2.loads(_cfg2.size_mapping)
-                    except: pass
+                    try:
+                        _smap2 = _j2.loads(_cfg2.size_mapping)
+                    except Exception:
+                        pass
                 stxt = _smap2.get(str(snum), "") if snum else ""
                 if name:
                     ExtraJerseyMember.objects.create(
@@ -832,8 +920,10 @@ def jersey_portal(request):
                 _cfg2 = TournamentConfig.objects.first()
                 _smap2 = {}
                 if _cfg2 and _cfg2.size_mapping:
-                    try: _smap2 = _j2.loads(_cfg2.size_mapping)
-                    except: pass
+                    try:
+                        _smap2 = _j2.loads(_cfg2.size_mapping)
+                    except Exception:
+                        pass
                 # Derive size_text from number if not provided
                 stxt = stxt_in or (_smap2.get(str(snum), "") if snum else "")
                 # Derive size_number from text if not provided
@@ -991,7 +1081,11 @@ def update_size_mapping(request):
     try:
         body    = request.body.decode("utf-8")
         mapping = _json.loads(body)
-        clean   = {str(k).strip(): str(v).strip().upper() for k, v in mapping.items() if str(k).strip() and str(v).strip()}
+        clean   = {
+            str(k).strip(): str(v).strip().upper()
+            for k, v in mapping.items()
+            if str(k).strip() and str(v).strip()
+        }
         config.size_mapping = _json.dumps(clean)
         config.save()
         return JsonResponse({"status": "ok", "mapping": clean})
@@ -1112,8 +1206,10 @@ def pool_manager(request):
             for m in p.matches.select_related("team1","team2","winner").order_by("created_at"):
                 rnum = 1
                 if m.notes and m.notes.startswith("round:"):
-                    try: rnum = int(m.notes.split(":")[1])
-                    except: pass
+                    try:
+                        rnum = int(m.notes.split(":")[1])
+                    except Exception:
+                        pass
                 rounds_map.setdefault(rnum, []).append(m)
             pool_match_map[p.pk] = [rounds_map[r] for r in sorted(rounds_map)]
 
@@ -1185,8 +1281,10 @@ def fixture_draw_view(request):
             for m in p.matches.select_related("team1","team2","winner").order_by("created_at"):
                 rnum = 1
                 if m.notes and m.notes.startswith("round:"):
-                    try: rnum = int(m.notes.split(":")[1])
-                    except: pass
+                    try:
+                        rnum = int(m.notes.split(":")[1])
+                    except Exception:
+                        pass
                 rounds_map.setdefault(rnum, []).append(m)
             pool_match_map[p.pk] = [rounds_map[r] for r in sorted(rounds_map)]
 
@@ -1544,7 +1642,7 @@ def fixture_record_result(request):
 # REPORTS
 # ════════════════════════════════════════════════════════════════
 
-from .services.report_service import (
+from .services.report_service import (  # noqa: E402
     all_players_pdf, auction_players_pdf, teamwise_pdf,
 )
 

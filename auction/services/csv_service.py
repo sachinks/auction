@@ -45,7 +45,7 @@ class CSVService:
                 if not reader.fieldnames or not all(
                     c in reader.fieldnames for c in self.REQUIRED_COLUMNS
                 ):
-                    msg = f"Invalid CSV header. Required: name, place, role, phone"
+                    msg = "Invalid CSV header. Required: name, place, role, phone"
                     logger.warning(f"_process_players_csv: {msg}")
                     raise ValueError(msg)
 
