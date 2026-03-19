@@ -17,7 +17,7 @@ def config(db):
         base_price_BAT=400,
         base_price_BOWL=400,
         base_price_PLY=100,
-        max_rebid_attempts=3,
+        max_rebid_attempts=4,
     )
 
 

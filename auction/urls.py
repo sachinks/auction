@@ -34,7 +34,11 @@ urlpatterns = [
     path("jersey/",                      views.jersey_portal,         name="jersey_portal"),
     path("jersey/save/",                 views.jersey_save_ajax,      name="jersey_save_ajax"),
     path("jersey/size-mapping/",         views.update_size_mapping,   name="update_size_mapping"),
-    path("jersey/pdf/",                  views.export_jersey_pdf,     name="jersey_pdf"),
+    path("jersey/pdf/",                  views.export_jersey_pdf,             name="jersey_pdf"),
+    path("jersey/players/pdf/",          views.export_players_jersey_pdf,     name="jersey_players_pdf"),
+    path("jersey/players/excel/",        views.export_players_jersey_excel,   name="jersey_players_excel"),
+    path("jersey/organisers/pdf/",       views.export_organisers_jersey_pdf,  name="jersey_organisers_pdf"),
+    path("jersey/organisers/excel/",     views.export_organisers_jersey_excel, name="jersey_organisers_excel"),
 
     # ── Old fixture URLs → redirect to pool manager ─────────
     path("fixtures/",                    views.fixtures_redirect,     name="fixtures_admin"),

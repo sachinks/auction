@@ -26,11 +26,10 @@ Handles team auctions, pool-based league fixtures, jersey management, and live p
 ### Players & Teams
 - **CSV import** with validate-only (dry-run) mode before committing
 - Import players (name, role, phone, place) or teams (name, short\_name, owners)
-- **Demo data loader** — 4 bundled CSVs committed to the repo, loadable from the UI with one click (works on Render too)
-  - `short_players.csv` — 30 players for quick testing
-  - `short_teams.csv` — 4 Sachin Kolige Premier League local teams
-  - `long_players.csv` — 249 real IPL player names
-  - `long_teams.csv` — 16 teams (10 IPL franchises + 6 local)
+- **Demo data loader** — 6 bundled CSVs committed to the repo, loadable from the UI with one click (works on Render too)
+  - `small_teams.csv` / `small_players.csv` — 4 teams · 20 IPL players (4 AR + 4 BAT + 4 BOWL + 8 PLY)
+  - `medium_teams.csv` / `medium_players.csv` — 8 teams · 40 IPL players (8 AR + 8 BAT + 8 BOWL + 16 PLY)
+  - `large_teams.csv` / `large_players.csv` — 16 teams · 96 IPL players (16 AR + 16 BAT + 16 BOWL + 48 PLY)
 
 ### Pools & Fixtures
 - **Configure pools** — set number of pools, teams per pool, teams advancing, and assignment order
@@ -101,8 +100,8 @@ Or from the shell:
 ```bash
 python manage.py shell -c "
 from auction.services.csv_service import CSVService
-CSVService().import_teams('sample_data/short_teams.csv')
-CSVService().import_players('sample_data/short_players.csv')
+CSVService().import_teams('sample_data/small_teams.csv')
+CSVService().import_players('sample_data/small_players.csv')
 "
 ```
 
@@ -133,15 +132,30 @@ A `Makefile` is included for common dev tasks. Instead of typing long commands, 
 | `make shell` | Open Django shell |
 | `make logs` | Tail all 3 log files live (`auction`, `system`, `error`) |
 | `make clean` | Delete `.pyc` files and `__pycache__` folders |
-| `make fresh` | **Full restart** — clean → reset → test |
+| `make fresh` | **Full restart** — clean → reset (no tests; run `make test` separately) |
 | `make help` | Show all available commands |
 
 **How `make test` works:**
 ```bash
 make test
+# If models changed → auto-runs makemigrations to regenerate 0001_initial.py
 # Runs pytest locally (RENDER not set)
 # Automatically skips on Render where RENDER=true
 ```
+
+**How `make fresh` works:**
+```bash
+make fresh
+# clean  → removes .pyc / __pycache__
+# reset  → deletes db.sqlite3, runs migrate, recreates superuser
+# (tests not included — run make test separately)
+```
+
+**Migration strategy (dev):**
+- `0001_initial.py` is the only migration file — always committed to git
+- `make fresh` wipes the DB and re-applies it; never accumulates `0002_` etc.
+- `make test` detects model changes and auto-regenerates `0001_initial.py` before running tests
+- When moving to production (PostgreSQL), switch to accumulating migrations instead
 
 > No internet or data usage — all commands run locally on your machine.
 
@@ -154,18 +168,18 @@ pip install pytest pytest-django
 pytest auction/tests/ -v
 ```
 
-151 tests across 8 modules:
+145 tests across 8 modules:
 
 | Module | Tests | Covers |
 |--------|-------|--------|
 | `test_models.py` | 15 | Point deduction/refund/switch, get\_short, singleton, pool fields |
 | `test_auction_engine.py` | 16 | Round labels, blocked teams, recalculate points, activate |
 | `test_bidding_service.py` | 23 | Bid validation, sell, force-sell, unsold, auto-drop, undo |
-| `test_csv_service.py` | 21 | Import/validate players & teams, error handling, sample files |
+| `test_csv_service.py` | 23 | Import/validate players & teams, error handling, all 6 sample files |
 | `test_fixture_service.py` | 27 | Pool creation, schedule generation, no-consecutive-match proof |
 | `test_jersey_service.py` | 11 | Jersey fields, extra members, PDF export, AJAX save |
 | `test_report_service.py` | 11 | PDF and Excel for all report types |
-| `test_views.py` | 27 | HTTP status codes, AJAX endpoints, pool/fixture/result flows |
+| `test_views.py` | 19 | HTTP status codes, AJAX endpoints, pool/fixture/result flows |
 
 ---
 
@@ -235,10 +249,12 @@ kpl/
 ├── templates/                  # All HTML templates (dark theme)
 ├── static/                     # CSS, JS, images
 ├── sample_data/                # Bundled CSV files (committed to git)
-│   ├── short_teams.csv
-│   ├── short_players.csv
-│   ├── long_teams.csv
-│   └── long_players.csv
+│   ├── small_teams.csv         # 4 teams
+│   ├── small_players.csv       # 20 players (4 AR·BAT·BOWL + 8 PLY)
+│   ├── medium_teams.csv        # 8 teams
+│   ├── medium_players.csv      # 40 players (8 AR·BAT·BOWL + 16 PLY)
+│   ├── large_teams.csv         # 16 teams
+│   └── large_players.csv       # 96 players (16 AR·BAT·BOWL + 48 PLY)
 ├── logs/                       # Runtime log files (gitignored)
 ├── media/                      # Uploaded banners (gitignored)
 ├── dev_reset.py                # Local dev reset — wipes DB and re-migrates

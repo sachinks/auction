@@ -95,10 +95,10 @@
     {# Revealed match display #}
     <div id="sd_result" style="display:none;margin-bottom:16px;padding:16px 20px;border-radius:12px;background:rgba(142,68,173,0.08);border:1px solid rgba(142,68,173,0.25);">
       <div id="sd_match_num" style="font-size:9px;color:#8e44ad;text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;"></div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-        <div id="sd_team1" style="font-size:20px;font-weight:900;color:#fff;"></div>
-        <div style="font-size:12px;color:#444;font-weight:700;">VS</div>
-        <div id="sd_team2" style="font-size:20px;font-weight:900;color:#fff;"></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+        <div id="sd_team1" style="font-size:20px;font-weight:900;color:#fff;min-width:80px;text-align:right;"></div>
+        <div id="sd_vs" style="font-size:12px;color:#444;font-weight:700;transition:opacity 0.4s;">VS</div>
+        <div id="sd_team2" style="font-size:20px;font-weight:900;min-width:80px;text-align:left;transition:color 0.4s;"></div>
       </div>
       <div id="sd_pool_label" style="font-size:11px;color:#8e44ad;margin-top:6px;"></div>
     </div>
@@ -326,8 +326,12 @@ document.getElementById("result_modal").addEventListener("click", function(e) {
 // ─── Spin Draw Ceremony ──────────────────────────────────────
 const SD_PALETTE = ["#9b59b6","#8e44ad","#6c3483","#a569bd","#7d3c98","#bb8fce","#5b2c6f","#d2b4de","#4a235a","#c39bd3"];
 let sdAngle = 0, sdSpinning = false, sdAllDone = false;
-// Build team list from pool assignments for the draw wheel
-const sdTeams = [{% for info in pools_status %}{% if info.pool.stage == "GROUP" %}{% for team in info.pool.teams.all %}{ name:"{{ team.name|escapejs }}", pool:"{{ info.pool.name }}" },{% endfor %}{% endif %}{% endfor %}];
+// pendingMatch holds API result after spin-1; cleared after spin-2 reveals team2
+let sdPendingMatch = null;
+
+// All teams with their pool info
+const sdAllTeams = [{% for info in pools_status %}{% if info.pool.stage == "GROUP" %}{% for team in info.pool.teams.all %}{ id: {{ team.team_serial_number }}, name:"{{ team.name|escapejs }}", pool:"{{ info.pool.name }}" },{% endfor %}{% endif %}{% endfor %}];
+let sdTeams = []; // Active teams for the current pool being drawn
 
 function drawSdWheel(angle) {
   const canvas = document.getElementById("sd_wheel"); if (!canvas) return;
@@ -352,76 +356,136 @@ function drawSdWheel(angle) {
 
 function openSpinDraw() {
   sdAllDone = false;
+  sdPendingMatch = null;
+  sdTeams = [...sdAllTeams]; // Fallback
   document.getElementById("sd_result").style.display = "none";
   document.getElementById("sd_done_msg").style.display = "none";
   document.getElementById("sd_err").style.display = "none";
-  document.getElementById("sd_spin_btn").disabled = false;
-  document.getElementById("sd_spin_btn").style.opacity = "1";
-  document.getElementById("sd_spin_btn").style.display = "block";
-  document.getElementById("sd_counter").innerText = "Spin to reveal each match";
+  const btn = document.getElementById("sd_spin_btn");
+  btn.disabled = false; btn.style.opacity = "1"; btn.style.display = "block";
+  btn.innerText = "🎰 SPIN";
+  document.getElementById("sd_counter").innerText = "Determining next pool...";
   document.getElementById("spin_draw_modal").style.display = "flex";
-  drawSdWheel(sdAngle);
+  
+  // Initialize with next match preview to filter wheel
+  sdFetchPreview();
+}
+
+function sdFetchPreview() {
+  fetch("/fixtures/draw/spin-next/", { method: "POST", body: new URLSearchParams({ "save": "false" }) })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === "ok") {
+      sdPendingMatch = d;
+      // Filter wheel to only show teams from THIS pool
+      sdTeams = sdAllTeams.filter(t => t.pool === d.pool);
+      document.getElementById("sd_counter").innerText = "Pool " + d.pool + ": Spin to pick the first team";
+      drawSdWheel(sdAngle);
+    } else if (d.status === "done") {
+      sdAllDone = true;
+      document.getElementById("sd_done_msg").style.display = "block";
+      document.getElementById("sd_spin_btn").style.display = "none";
+      document.getElementById("sd_counter").innerText = "All fixtures drawn.";
+    }
+  });
 }
 
 function closeSpinDraw() {
   document.getElementById("spin_draw_modal").style.display = "none";
-  if (sdAllDone) location.reload();
+  if (sdAllDone || MatchWasSaved) location.reload();
 }
 
+let MatchWasSaved = false;
+
 function sdSpin() {
-  if (sdSpinning || sdAllDone) return;
+  if (sdSpinning || sdAllDone || !sdPendingMatch) return;
+  
   sdSpinning = true;
-  document.getElementById("sd_spin_btn").disabled = true;
-  document.getElementById("sd_result").style.display = "none";
+  const btn = document.getElementById("sd_spin_btn");
+  btn.disabled = true;
   document.getElementById("sd_err").style.display = "none";
-  const extra = 5 + Math.random()*4;
-  const target = sdAngle + extra*Math.PI*2 + Math.random()*Math.PI*2;
-  const dur = 3000 + Math.random()*1000, start = sdAngle, t0 = performance.now();
-  function ease(t){ return 1 - Math.pow(1-t, 4); }
+
+  const isSecondSpin = (document.getElementById("sd_team2").innerText === "???");
+  const targetTeamName = isSecondSpin ? sdPendingMatch.team2 : sdPendingMatch.team1;
+  
+  // Find index of target team in wheel
+  const targetIdx = sdTeams.findIndex(t => t.name === targetTeamName);
+  
+  // Calculate final angle to land on target team
+  // Arrow is at top (-PI/2). Wheel rotates clockwise.
+  // land angle = -PI/2 - (i + 0.5) * slice
+  const n = sdTeams.length;
+  const sl = Math.PI*2/n;
+  const targetFinalAngle = -Math.PI/2 - (targetIdx + 0.5)*sl;
+  
+  const extra = 4 + Math.floor(Math.random() * 3);
+  const target = targetFinalAngle + extra * Math.PI * 2;
+  const dur = 2500 + Math.random()*1000;
+  const start = sdAngle, t0 = performance.now();
+
+  function ease(t) { return 1 - Math.pow(1 - t, 4); }
   function frame(now) {
-    const p = Math.min((now-t0)/dur, 1);
-    sdAngle = start + (target-start)*ease(p);
+    const p = Math.min((now - t0) / dur, 1);
+    sdAngle = start + (target - start) * ease(p);
     drawSdWheel(sdAngle);
     if (p < 1) { requestAnimationFrame(frame); }
-    else { sdAngle %= Math.PI*2; sdSpinning = false; sdReveal(); }
+    else { sdAngle %= Math.PI * 2; sdSpinning = false; sdReveal(); }
   }
   requestAnimationFrame(frame);
 }
 
 function sdReveal() {
-  const data = new URLSearchParams();
-  fetch("/fixtures/draw/spin-next/", { method:"POST", body:data })
-  .then(r => r.json()).then(d => {
-    if (d.status === "ok") {
-      document.getElementById("sd_match_num").innerText = "Match " + d.match_number + " · Pool " + d.pool;
-      document.getElementById("sd_team1").innerText = d.team1;
+  const btn = document.getElementById("sd_spin_btn");
+  const d = sdPendingMatch;
+
+  if (document.getElementById("sd_team2").innerText === "???") {
+    // ── Spin 2 reveal (Opponent) ──────────
+    // NOW we save to DB
+    fetch("/fixtures/draw/spin-next/", { 
+      method: "POST", 
+      body: new URLSearchParams({ "save": "true", "team_id": d.team1_id }) 
+    })
+    .then(r => r.json())
+    .then(saved => {
+      MatchWasSaved = true;
       document.getElementById("sd_team2").innerText = d.team2;
-      document.getElementById("sd_pool_label").innerText = "Pool " + d.pool;
-      document.getElementById("sd_result").style.display = "block";
-      document.getElementById("sd_counter").innerText = d.remaining + " match" + (d.remaining !== 1 ? "es" : "") + " remaining";
-      document.getElementById("sd_spin_btn").disabled = false;
-      document.getElementById("sd_spin_btn").style.opacity = "1";
-      if (d.remaining === 0) {
+      document.getElementById("sd_team2").style.color = "#fff";
+      document.getElementById("sd_vs").style.opacity = "1";
+      document.getElementById("sd_match_num").innerText = "Match " + saved.match_number + " · Pool " + d.pool;
+      document.getElementById("sd_counter").innerText = saved.remaining + " match" + (saved.remaining !== 1 ? "es" : "") + " remaining";
+
+      if (saved.remaining === 0) {
         sdAllDone = true;
-        document.getElementById("sd_spin_btn").style.display = "none";
+        btn.style.display = "none";
         document.getElementById("sd_done_msg").style.display = "block";
-        document.getElementById("sd_counter").innerText = "Draw complete!";
+      } else {
+        btn.innerText = "🎰 NEXT MATCH";
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.onclick = () => {
+          document.getElementById("sd_result").style.display = "none";
+          sdPendingMatch = null;
+          btn.onclick = sdSpin;
+          sdFetchPreview();
+        };
       }
-    } else if (d.status === "done") {
-      sdAllDone = true;
-      document.getElementById("sd_done_msg").style.display = "block";
-      document.getElementById("sd_spin_btn").style.display = "none";
-      document.getElementById("sd_counter").innerText = "Draw complete!";
-    } else {
-      document.getElementById("sd_err").innerText = "Error: " + (d.message || "unknown");
-      document.getElementById("sd_err").style.display = "block";
-      document.getElementById("sd_spin_btn").disabled = false;
-    }
-  }).catch(() => {
-    document.getElementById("sd_err").innerText = "Network error. Try again.";
-    document.getElementById("sd_err").style.display = "block";
-    document.getElementById("sd_spin_btn").disabled = false;
-  });
+    });
+
+  } else {
+    // ── Spin 1 reveal (First Team) ──────────
+    document.getElementById("sd_match_num").innerText = "Match " + d.match_number + " · Pool " + d.pool;
+    document.getElementById("sd_team1").innerText = d.team1;
+    document.getElementById("sd_vs").style.opacity = "0.25";
+    document.getElementById("sd_team2").innerText = "???";
+    document.getElementById("sd_team2").style.color = "#444";
+    document.getElementById("sd_pool_label").innerText = "Pool " + d.pool;
+    document.getElementById("sd_result").style.display = "block";
+    document.getElementById("sd_counter").innerText = "Spin to reveal the opponent!";
+
+    btn.innerText = "🎰 SPIN OPPONENT";
+    btn.disabled = false;
+    btn.style.opacity = "1";
+  }
 }
 document.getElementById("spin_draw_modal").addEventListener("click", function(e){ if(e.target===this) closeSpinDraw(); });
 </script>

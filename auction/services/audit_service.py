@@ -26,7 +26,7 @@ class AuditService:
 
     def get_all_actions(self):
         try:
-            return AuctionAction.objects.order_by("-timestamp")
+            return AuctionAction.objects.select_related("player", "team").order_by("-pk")
         except Exception as e:
             logger.error(f"get_all_actions error: {e}")
             return AuctionAction.objects.none()

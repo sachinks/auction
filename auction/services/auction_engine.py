@@ -302,7 +302,6 @@ class AuctionEngine:
 
         logger.info("All categories exhausted — marking auction complete")
         state.phase               = AuctionState.PHASE_DONE
-        state.is_active           = False
         state.current_player      = None
         state.awaiting_transition = True
         state.transition_message  = "All rounds complete — press 'Complete Auction' to finalise"
@@ -379,6 +378,10 @@ class AuctionEngine:
     def reset_auction(self):
         logger.warning("reset_auction called")
         try:
+            from auction.models import AuctionAction, Match
+            AuctionAction.objects.all().delete()
+            Match.objects.all().delete()
+
             Player.objects.all().update(
                 sold_price=None, team=None,
                 status=Player.STATUS_AVAILABLE, rebid_count=0

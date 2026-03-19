@@ -161,3 +161,174 @@ class TestActivateAuction(TestCase):
         state = AuctionState.get()
         self.assertTrue(state.awaiting_transition)
         self.assertIsNotNone(state.transition_message)
+
+
+# ─────────────────────────────────────────────────────────────
+# _set_next_transition(): full phase flow
+# ─────────────────────────────────────────────────────────────
+
+class TestPhaseTransitions(TestCase):
+    """Verify that the transition overlay fires at each phase boundary."""
+
+    def _state(self, phase, cat, pass_num, is_active=True):
+        s = AuctionState.get()
+        s.phase               = phase
+        s.current_category    = cat
+        s.category_pass       = pass_num
+        s.is_active           = is_active
+        s.awaiting_transition = False
+        s.transition_message  = ""
+        s.save()
+        return s
+
+    def setUp(self):
+        self.config = TournamentConfig.objects.create(
+            total_points=10000,
+            bidding_slots=11,
+            base_price_AR=1000,
+            base_price_BAT=400,
+            base_price_BOWL=400,
+            base_price_PLY=100,
+            max_rebid_attempts=4,
+            category_order="AR,BAT,BOWL,PLY",
+        )
+        self.team_a = Team.objects.create(name="Team A", remaining_points=10000)
+        self.team_b = Team.objects.create(name="Team B", remaining_points=10000)
+
+    def test_main_pass1_to_rebid_when_unsold_exist(self):
+        """MAIN pass 1 exhausted with unsold → transition to REBID."""
+        Player.objects.create(name="AR1", role="AR", base_price=1000, status=Player.STATUS_UNSOLD)
+        self._state(AuctionState.PHASE_MAIN, "AR", 1)
+
+        AuctionEngine().advance_to_next_player()
+        state = AuctionState.get()
+
+        self.assertTrue(state.awaiting_transition)
+        self.assertEqual(state.phase, AuctionState.PHASE_REBID)
+        self.assertIn("Rebid", state.transition_message)
+
+    def test_rebid_pass1_exhausted_shows_next_category_transition(self):
+        """REBID exhausted (no AVAILABLE) → transition to next category (BAT)."""
+        # AR players all dealt with (unsold, will be in rebid pool initially)
+        ar1 = Player.objects.create(name="AR1", role="AR", base_price=1000, status=Player.STATUS_UNSOLD)
+        # BAT players available for next round
+        Player.objects.create(name="BAT1", role="BAT", base_price=400, status=Player.STATUS_AVAILABLE)
+
+        # Simulate: AR REBID pool is now empty (AR1 just auto-dropped to NOT_PLAYING)
+        ar1.status = Player.STATUS_NOT_PLAYING
+        ar1.save()
+
+        self._state(AuctionState.PHASE_REBID, "AR", 1)
+
+        AuctionEngine().advance_to_next_player()
+        state = AuctionState.get()
+
+        # Should transition to BAT round
+        self.assertTrue(state.awaiting_transition, "pass 3 transition overlay must be set")
+        self.assertEqual(state.current_category, "BAT", "category must advance to BAT")
+        self.assertEqual(state.phase, AuctionState.PHASE_MAIN, "phase must reset to MAIN for new category")
+        self.assertIn("Batting", state.transition_message)
+
+    def test_ply_rebid_exhausted_shows_done_transition(self):
+        """PLY REBID exhausted (last category) → DONE transition."""
+        Player.objects.create(name="PLY1", role="PLY", base_price=100, status=Player.STATUS_UNSOLD)
+        # simulate pool empty
+        Player.objects.filter(role="PLY").update(status=Player.STATUS_NOT_PLAYING)
+
+        self._state(AuctionState.PHASE_REBID, "PLY", 1)
+
+        AuctionEngine().advance_to_next_player()
+        state = AuctionState.get()
+
+        self.assertTrue(state.awaiting_transition)
+        self.assertEqual(state.phase, AuctionState.PHASE_DONE)
+
+
+# ─────────────────────────────────────────────────────────────
+# Full simulation: sell/unsold through entire AR → REBID → BAT
+# ─────────────────────────────────────────────────────────────
+
+class TestFullFlowSimulation(TestCase):
+    """
+    Simulates a complete auction flow using BiddingService and AuctionEngine,
+    verifying that the 'pass 3' transition overlay fires after REBID ends.
+    """
+
+    def setUp(self):
+        self.config = TournamentConfig.objects.create(
+            total_points=10000,
+            bidding_slots=11,
+            base_price_AR=1000,
+            base_price_BAT=400,
+            base_price_BOWL=400,
+            base_price_PLY=100,
+            max_rebid_attempts=2,   # low so REBID ends quickly in the test
+            category_order="AR,BAT,BOWL,PLY",
+        )
+        self.team   = Team.objects.create(name="Alpha", remaining_points=10000)
+        self.ar1    = Player.objects.create(name="AR1", role="AR", base_price=1000, status=Player.STATUS_AVAILABLE)
+        self.bat1   = Player.objects.create(name="BAT1", role="BAT", base_price=400, status=Player.STATUS_AVAILABLE)
+        self.engine = AuctionEngine()
+
+    def _confirm(self):
+        """Confirm the current transition overlay."""
+        self.engine.confirm_transition()
+
+    def _mark_unsold(self, player):
+        from auction.services.bidding_service import BiddingService
+        state = AuctionState.get()
+        state.current_player = player
+        state.save()
+        BiddingService().mark_unsold(player.serial_number)
+
+    def _auto_advance(self):
+        """Simulate the view's auto-advance logic."""
+        state = AuctionState.get()
+        if (state.current_player is None
+                and not state.awaiting_transition
+                and state.phase != AuctionState.PHASE_DONE
+                and state.is_active):
+            self.engine.advance_to_next_player()
+
+    def test_pass3_transition_appears_after_ar_rebid(self):
+        """
+        Full flow: activate → AR pass 1 (AR1 unsold) → AR Rebid (AR1 unsold again to max)
+        → 'pass 3' transition to BAT Round must be set.
+        """
+        # Activate
+        self.engine.activate_auction()
+        state = AuctionState.get()
+        self.assertTrue(state.awaiting_transition)  # initial transition
+
+        # Confirm initial transition → AR pass 1 starts
+        self._confirm()
+        state = AuctionState.get()
+        self.assertFalse(state.awaiting_transition)
+        self.assertEqual(state.current_player, self.ar1)
+
+        # Mark AR1 unsold (rebid_count=1, max=2, so still in pool)
+        self._mark_unsold(self.ar1)
+        self._auto_advance()   # pool exhausted (no more AVAILABLE AR) → REBID transition
+        state = AuctionState.get()
+        self.assertTrue(state.awaiting_transition, "REBID transition (pass 2 warning) must fire")
+        self.assertEqual(state.phase, AuctionState.PHASE_REBID)
+
+        # Confirm pass-2 transition → REBID starts
+        self._confirm()
+        state = AuctionState.get()
+        self.assertFalse(state.awaiting_transition)
+        self.ar1.refresh_from_db()
+        self.assertEqual(state.current_player, self.ar1)  # AR1 back in REBID pool
+
+        # Mark AR1 unsold again (rebid_count=2, == max_rebid_attempts → auto-drop to NOT_PLAYING)
+        self._mark_unsold(self.ar1)
+        self.ar1.refresh_from_db()
+        self.assertEqual(self.ar1.status, Player.STATUS_NOT_PLAYING)
+
+        # REBID pool now empty — auto-advance should set "pass 3" transition (BAT)
+        self._auto_advance()
+        state = AuctionState.get()
+        self.assertTrue(state.awaiting_transition, "pass 3 transition to BAT must be set")
+        self.assertEqual(state.phase, AuctionState.PHASE_MAIN)
+        self.assertEqual(state.current_category, "BAT")
+        self.assertIn("Batting", state.transition_message)

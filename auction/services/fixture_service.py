@@ -186,47 +186,105 @@ def generate_pool_matches(pool_id):
     return created, skipped
 
 
-def generate_next_match():
+def generate_next_match(team_id=None, save=True):
     """
     Generate the next single match in round-robin order across all group pools.
     Follows the same circle-method round-robin logic as generate_pool_matches,
     but creates only one match at a time for spin-reveal draws.
+
+    If team_id is given, the next undrawn match from that team's pool
+    that actually involves that team is returned.
+
+    If save=False, the match is found but not created in the DB.
     Returns a dict with match details, or None if all matches already generated.
     """
     pools = TournamentPool.objects.filter(stage=TournamentPool.STAGE_GROUP).order_by("order")
 
+    # If a team was spun, try that team's pool first and specifically for that team
+    if team_id:
+        try:
+            pt = PoolTeam.objects.select_related("pool").get(
+                team__team_serial_number=team_id,
+                pool__stage=TournamentPool.STAGE_GROUP,
+            )
+            result = _generate_next_match_in_pool(pt.pool, pools, team_id=team_id, save=save)
+            if result:
+                return result
+        except PoolTeam.DoesNotExist:
+            pass
+
+    # Sequential fallback: generate next match in interleaved pool order
+    # (Use next_pool_for_draw to find the most appropriate pool)
+    target_pool = next_pool_for_draw()
+    if target_pool:
+        result = _generate_next_match_in_pool(target_pool, pools, save=save)
+        if result:
+            return result
+
+    # Global fallback (should not be reached if next_pool_for_draw works)
     for pool in pools:
-        teams = list(pool.teams.all().order_by("name"))
-        rounds = _round_robin_rounds(teams)
-        for round_num, round_matches in enumerate(rounds, start=1):
-            for t1, t2 in round_matches:
-                exists = (
-                    Match.objects.filter(team1=t1, team2=t2, pool=pool).exists() or
-                    Match.objects.filter(team1=t2, team2=t1, pool=pool).exists()
-                )
-                if not exists:
-                    next_num = (Match.objects.count() or 0) + 1
+        result = _generate_next_match_in_pool(pool, pools, save=save)
+        if result:
+            return result
+    return None
+
+
+def _generate_next_match_in_pool(pool, all_pools, team_id=None, save=True):
+    """
+    Find and optionally create the next undrawn match within a single pool.
+    If team_id is provided, ensures the match involves that team.
+    Returns the match dict, or None if no matching undrawn pairs found.
+    """
+    teams = list(pool.teams.all().order_by("name"))
+    rounds = _round_robin_rounds(teams)
+    for round_num, round_matches in enumerate(rounds, start=1):
+        for t1, t2 in round_matches:
+            # Filter by team_id if provided
+            if team_id:
+                if t1.team_serial_number != int(team_id) and t2.team_serial_number != int(team_id):
+                    continue
+
+            exists = (
+                Match.objects.filter(team1=t1, team2=t2, pool=pool).exists() or
+                Match.objects.filter(team1=t2, team2=t1, pool=pool).exists()
+            )
+            if not exists:
+                m_num = (Match.objects.count() or 0) + 1
+                if save:
                     m = Match.objects.create(
-                        match_number=next_num,
+                        match_number=m_num,
                         round_label=f"Pool {pool.name}",
                         team1=t1, team2=t2, pool=pool,
                         notes=f"round:{round_num}",
                     )
-                    # Count how many matches remain after this one
-                    remaining = _count_ungenerated_matches(pools)
                     try:
                         _renumber_matches()
                         m.refresh_from_db()
+                        m_num = m.match_number
                     except Exception:
                         pass
-                    return {
-                        "match_id": m.pk,
-                        "match_number": m.match_number,
-                        "team1": t1.name,
-                        "team2": t2.name,
-                        "pool": pool.name,
-                        "remaining": remaining,
-                    }
+                
+                remaining = _count_ungenerated_matches(all_pools)
+                # If we didn't save yet, the match we just found is still 'remaining'
+                if not save:
+                    pass 
+
+                # Ensure team1 in the response is the spun team if team_id given
+                out_t1, out_t2 = t1, t2
+                if team_id and t2.team_serial_number == int(team_id):
+                    out_t1, out_t2 = t2, t1
+
+                return {
+                    "match_id": m.pk if save else None,
+                    "match_number": m_num,
+                    "team1": out_t1.name,
+                    "team1_id": out_t1.team_serial_number,
+                    "team2": out_t2.name,
+                    "team2_id": out_t2.team_serial_number,
+                    "pool": pool.name,
+                    "pool_id": pool.pk,
+                    "remaining": remaining,
+                }
     return None
 
 

@@ -172,7 +172,7 @@ class TournamentConfig(models.Model):
     base_price_PLY  = models.IntegerField(default=100)
 
     category_order     = models.CharField(max_length=50, default="AR,BAT,BOWL,PLY")
-    max_rebid_attempts = models.IntegerField(default=3)
+    max_rebid_attempts = models.IntegerField(default=4)
 
     size_mapping = models.TextField(
         default='{"36":"XS","38":"S","40":"M","42":"L","44":"XL","46":"XXL"}',
@@ -221,6 +221,7 @@ class AuctionAction(models.Model):
     amount    = models.IntegerField(null=True, blank=True)
     round     = models.IntegerField(default=1)
     category  = models.CharField(max_length=10, blank=True)
+    phase     = models.CharField(max_length=10, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

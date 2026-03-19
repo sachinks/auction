@@ -131,29 +131,18 @@ class TestUploadCSV(TestCase):
         resp = self.client.get("/auction/upload-csv/")
         self.assertEqual(resp.status_code, 200)
 
-    def test_load_demo_short_players(self):
-        import os
-        from django.conf import settings
-        path = os.path.join(settings.BASE_DIR, "sample_data", "short_players.csv")
-        if not os.path.exists(path):
-            self.skipTest("sample_data/short_players.csv not found")
+    def test_load_demo_small_players(self):
         resp = self.client.post("/auction/upload-csv/", {
             "action":    "load_demo",
-            "demo_file": "short_players",
+            "demo_file": "small_players",
         })
         self.assertEqual(resp.status_code, 200)
-        # Page loads back with result
         self.assertContains(resp, "imported")
 
-    def test_load_demo_short_teams(self):
-        import os
-        from django.conf import settings
-        path = os.path.join(settings.BASE_DIR, "sample_data", "short_teams.csv")
-        if not os.path.exists(path):
-            self.skipTest("sample_data/short_teams.csv not found")
+    def test_load_demo_small_teams(self):
         resp = self.client.post("/auction/upload-csv/", {
             "action":    "load_demo",
-            "demo_file": "short_teams",
+            "demo_file": "small_teams",
         })
         self.assertEqual(resp.status_code, 200)
 

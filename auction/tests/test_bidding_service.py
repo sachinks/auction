@@ -127,7 +127,7 @@ class TestMarkUnsold(TestCase):
     def setUp(self):
         self.config = TournamentConfig.objects.create(
             total_points=10000, bidding_slots=11,
-            base_price_PLY=100, max_rebid_attempts=3,
+            base_price_PLY=100, max_rebid_attempts=4,
         )
         _setup_state()
 
@@ -147,7 +147,7 @@ class TestMarkUnsold(TestCase):
     def test_ply_auto_drops_at_max(self):
         p   = Player.objects.create(name="PLY", role="PLY", base_price=100)
         svc = BiddingService()
-        for _ in range(3):
+        for _ in range(4):
             p.refresh_from_db()
             p.status = Player.STATUS_AVAILABLE
             p.save()

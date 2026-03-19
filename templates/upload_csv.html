@@ -93,13 +93,16 @@
 
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
 
+        {# ── Small ── #}
+        <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">Small — 4 Teams</div>
+
         <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
           background:rgba(243,156,18,0.06);border:1px solid rgba(243,156,18,0.18);
           border-radius:8px;padding:12px 16px;">
-          <input type="radio" name="demo_file" value="short_teams" style="accent-color:#f39c12;flex-shrink:0;">
+          <input type="radio" name="demo_file" value="small_teams" style="accent-color:#f39c12;flex-shrink:0;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#f39c12;">short_teams.csv</div>
-            <div style="font-size:11px;color:#666;margin-top:2px;">4 Sachin Kolige Premier League local teams — Kolige Kings, Shimoga Strikers, Sagar Supernovas, Bhadra Blasters</div>
+            <div style="font-size:13px;font-weight:700;color:#f39c12;">small_teams.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">Kolige Kings, Shimoga Strikers, Sagar Supernovas, Bhadra Blasters</div>
           </div>
           <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(243,156,18,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">4 teams</div>
         </label>
@@ -107,21 +110,49 @@
         <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
           background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.18);
           border-radius:8px;padding:12px 16px;">
-          <input type="radio" name="demo_file" value="short_players" checked style="accent-color:#2ecc71;flex-shrink:0;">
+          <input type="radio" name="demo_file" value="small_players" checked style="accent-color:#2ecc71;flex-shrink:0;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#2ecc71;">short_players.csv</div>
-            <div style="font-size:11px;color:#666;margin-top:2px;">30 players — Rohit, Kohli, Bumrah, Jadeja and 26 more. Quick test auction ready.</div>
+            <div style="font-size:13px;font-weight:700;color:#2ecc71;">small_players.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">20 IPL players — 4 AR, 4 BAT, 4 BOWL, 8 PLY (2 per team)</div>
           </div>
-          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(39,174,96,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">30 players</div>
+          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(39,174,96,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">20 players</div>
         </label>
+
+        {# ── Medium ── #}
+        <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:8px;">Medium — 8 Teams</div>
+
+        <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
+          background:rgba(243,156,18,0.06);border:1px solid rgba(243,156,18,0.18);
+          border-radius:8px;padding:12px 16px;">
+          <input type="radio" name="demo_file" value="medium_teams" style="accent-color:#f39c12;flex-shrink:0;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#f39c12;">medium_teams.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">Kolige Kings, Shimoga Strikers, Sagar Supernovas, Bhadra Blasters, Tungabhadra Tigers, Malnad Mavericks, Thirthahalli Thunders, Agumbe Avengers</div>
+          </div>
+          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(243,156,18,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">8 teams</div>
+        </label>
+
+        <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
+          background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.18);
+          border-radius:8px;padding:12px 16px;">
+          <input type="radio" name="demo_file" value="medium_players" style="accent-color:#2ecc71;flex-shrink:0;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#2ecc71;">medium_players.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">40 IPL players — 8 AR, 8 BAT, 8 BOWL, 16 PLY (2 per team)</div>
+          </div>
+          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(39,174,96,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">40 players</div>
+        </label>
+
+        {# ── Large ── #}
+        <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:8px;">Large — 16 Teams</div>
 
         <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
           background:rgba(155,89,182,0.06);border:1px solid rgba(155,89,182,0.18);
           border-radius:8px;padding:12px 16px;">
-          <input type="radio" name="demo_file" value="long_teams" style="accent-color:#c39bd3;flex-shrink:0;">
+          <input type="radio" name="demo_file" value="large_teams" style="accent-color:#c39bd3;flex-shrink:0;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#c39bd3;">long_teams.csv</div>
-            <div style="font-size:11px;color:#666;margin-top:2px;">16 teams — 10 IPL franchises (MI, CSK, RCB, KKR…) + 6 Sachin Kolige Premier League local teams</div>
+            <div style="font-size:13px;font-weight:700;color:#c39bd3;">large_teams.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">All 16 local Malnad/Shivamogga teams — Kolige Kings through Balehonnur Bulls</div>
           </div>
           <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(155,89,182,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">16 teams</div>
         </label>
@@ -129,12 +160,12 @@
         <label style="display:flex;gap:12px;align-items:center;cursor:pointer;
           background:rgba(52,152,219,0.06);border:1px solid rgba(52,152,219,0.18);
           border-radius:8px;padding:12px 16px;">
-          <input type="radio" name="demo_file" value="long_players" style="accent-color:#3498db;flex-shrink:0;">
+          <input type="radio" name="demo_file" value="large_players" style="accent-color:#74a9f5;flex-shrink:0;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#74a9f5;">long_players.csv</div>
-            <div style="font-size:11px;color:#666;margin-top:2px;">249 real IPL players — BATs, BOWLers, ARs, PLYs from all franchises and international teams</div>
+            <div style="font-size:13px;font-weight:700;color:#74a9f5;">large_players.csv</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">96 IPL players — 16 AR, 16 BAT, 16 BOWL, 48 PLY (3 per team)</div>
           </div>
-          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(52,152,219,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">249 players</div>
+          <div style="margin-left:auto;font-size:10px;color:#555;font-weight:700;background:rgba(52,152,219,0.1);padding:3px 8px;border-radius:4px;white-space:nowrap;">96 players</div>
         </label>
 
       </div>

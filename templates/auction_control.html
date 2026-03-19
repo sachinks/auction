@@ -5,17 +5,22 @@
 {% if state.awaiting_transition %}
 <div style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:100;display:flex;align-items:center;justify-content:center;">
   <div class="card" style="max-width:520px;width:90%;text-align:center;padding:40px;">
-    <div style="font-size:36px;margin-bottom:16px;">🏏</div>
-    <div style="font-size:22px;font-weight:800;color:#f39c12;margin-bottom:12px;">{{ state.transition_message }}</div>
     {% if state.phase == "DONE" %}
-    <div style="font-size:12px;color:#555;margin-bottom:28px;">Press End Auction when ready to view the summary</div>
-    <form method="POST" action="/auction/complete/">
+    <div style="font-size:48px;margin-bottom:16px;">🏆</div>
+    <div style="font-size:24px;font-weight:900;color:#f39c12;margin-bottom:10px;">Auction Complete!</div>
+    <div style="font-size:13px;color:#888;line-height:1.7;margin-bottom:28px;">
+      All rounds have been processed.<br>
+      <span style="color:#555;">Use the <b style="color:#e74c3c;">End Auction</b> button in the top-right when you're ready to view the final summary.</span>
+    </div>
+    <form method="POST" action="/auction/continue/">
       {% csrf_token %}
-      <button type="submit" class="btn-primary" style="width:100%;font-size:18px;padding:16px;">
-        🏁 End Auction &amp; View Summary
+      <button type="submit" class="btn-primary" style="width:100%;font-size:16px;padding:14px;">
+        ✓ OK
       </button>
     </form>
     {% else %}
+    <div style="font-size:36px;margin-bottom:16px;">🏏</div>
+    <div style="font-size:22px;font-weight:800;color:#f39c12;margin-bottom:12px;">{{ state.transition_message }}</div>
     <div style="font-size:12px;color:#555;margin-bottom:28px;">Click Continue when ready to start the next round</div>
     <form method="POST" action="/auction/continue/">
       {% csrf_token %}
@@ -37,23 +42,60 @@
     <span style="font-size:11px;color:#555;">Unsold: <b style="color:#e67e22;">{{ unsold_count }}</b></span>
   </div>
   <div style="display:flex;gap:8px;">
-    <form method="POST" action="/auction/undo/" style="display:inline;">
-      {% csrf_token %}
-      <button type="submit" onclick="return confirm('Undo last action?')"
-        class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8617; Undo</button>
-    </form>
+    <button type="button" onclick="showUndoModal()"
+      class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8617; Undo</button>
     <form method="POST" action="/auction/refresh/" style="display:inline;">
       {% csrf_token %}
       <button type="submit" class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8635; Refresh Points</button>
     </form>
-    <form method="POST" action="/auction/complete/" style="display:inline;">
-      {% csrf_token %}
-      <button type="submit"
-        onclick="return confirm('End auction and go to summary?')"
-        style="background:rgba(231,76,60,0.12);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);font-size:12px;padding:6px 14px;border-radius:6px;font-weight:700;">
-        &#127937; End Auction
-      </button>
-    </form>
+    <button type="button" onclick="showEndAuctionModal()"
+      style="background:rgba(231,76,60,0.12);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);font-size:12px;padding:6px 14px;border-radius:6px;font-weight:700;">
+      &#127937; End Auction
+    </button>
+  </div>
+
+  {# ── Undo modal (page-level fixed) ── #}
+  <div id="undo_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#12121e;border:1px solid rgba(116,169,245,0.4);border-radius:10px;padding:28px 28px;max-width:320px;width:90%;text-align:center;">
+      <div style="font-size:28px;margin-bottom:10px;">&#8617;</div>
+      <div style="font-size:15px;font-weight:700;color:#74a9f5;margin-bottom:8px;">Undo Last Action?</div>
+      <div style="font-size:12px;color:#666;margin-bottom:22px;">This will reverse the last sell, unsold or not-playing action.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="hideUndoModal()" type="button"
+          style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+          Cancel
+        </button>
+        <form method="POST" action="/auction/undo/" style="margin:0;">
+          {% csrf_token %}
+          <button type="submit"
+            style="width:100%;padding:11px;border-radius:7px;background:rgba(116,169,245,0.15);color:#74a9f5;border:1px solid rgba(116,169,245,0.4);font-size:13px;font-weight:700;">
+            &#8617; Undo
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── End Auction modal (page-level fixed) ── #}
+  <div id="end_auction_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#12121e;border:1px solid rgba(231,76,60,0.4);border-radius:10px;padding:28px 28px;max-width:320px;width:90%;text-align:center;">
+      <div style="font-size:28px;margin-bottom:10px;">&#127937;</div>
+      <div style="font-size:15px;font-weight:700;color:#e74c3c;margin-bottom:8px;">End Auction?</div>
+      <div style="font-size:12px;color:#666;margin-bottom:22px;">This will mark the auction as complete and take you to the final summary.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button onclick="hideEndAuctionModal()" type="button"
+          style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+          Cancel
+        </button>
+        <form method="POST" action="/auction/complete/" style="margin:0;">
+          {% csrf_token %}
+          <button type="submit"
+            style="width:100%;padding:11px;border-radius:7px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.4);font-size:13px;font-weight:700;">
+            &#127937; End
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -65,16 +107,73 @@
     <div id="force_sell_modal">
       <div style="background:#12121e;border:1px solid rgba(231,76,60,0.4);border-radius:10px;padding:28px 24px;max-width:300px;width:90%;text-align:center;">
         <div style="font-size:28px;margin-bottom:10px;">&#9888;&#65039;</div>
-        <div style="font-size:14px;font-weight:700;color:#e74c3c;margin-bottom:8px;">Below Base Price</div>
+        <div id="force_sell_title" style="font-size:14px;font-weight:700;color:#e74c3c;margin-bottom:8px;">Below Base Price</div>
         <div id="force_sell_msg" style="font-size:12px;color:#888;line-height:1.6;margin-bottom:20px;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <button onclick="cancelForceSell()" type="button"
             style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
-            Continue
+            Cancel
           </button>
           <button onclick="confirmForceSell()" type="button"
             style="padding:11px;border-radius:7px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.4);font-size:13px;font-weight:700;">
             &#9888; Force Sell
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Unsold confirmation modal ── #}
+    <div id="unsold_modal">
+      <div style="background:#12121e;border:1px solid rgba(243,156,18,0.4);border-radius:10px;padding:28px 24px;max-width:300px;width:90%;text-align:center;">
+        <div style="font-size:28px;margin-bottom:10px;">&#128683;</div>
+        <div style="font-size:14px;font-weight:700;color:#f39c12;margin-bottom:8px;">Mark as Unsold?</div>
+        <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:20px;">Player will go back to the unsold pool for rebidding.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onclick="cancelUnsold()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+            Cancel
+          </button>
+          <button onclick="confirmUnsold()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(243,156,18,0.15);color:#f39c12;border:1px solid rgba(243,156,18,0.4);font-size:13px;font-weight:700;">
+            UNSOLD
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Not Playing confirmation modal ── #}
+    <div id="not_playing_modal">
+      <div style="background:#12121e;border:1px solid rgba(127,140,141,0.4);border-radius:10px;padding:28px 24px;max-width:300px;width:90%;text-align:center;">
+        <div style="font-size:28px;margin-bottom:10px;">&#10060;</div>
+        <div style="font-size:14px;font-weight:700;color:#7f8c8d;margin-bottom:8px;">Mark as Not Playing?</div>
+        <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:20px;">Player will be permanently removed from the auction pool.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onclick="cancelNotPlaying()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+            Cancel
+          </button>
+          <button onclick="confirmNotPlaying()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(127,140,141,0.15);color:#95a5a6;border:1px solid rgba(127,140,141,0.4);font-size:13px;font-weight:700;">
+            NOT PLAYING
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Confirm extra player modal ── #}
+    <div id="confirm_extra_modal">
+      <div style="background:#12121e;border:1px solid rgba(116,169,245,0.4);border-radius:10px;padding:28px 24px;max-width:300px;width:90%;text-align:center;">
+        <div style="font-size:28px;margin-bottom:10px;">&#43;&#129351;</div>
+        <div style="font-size:14px;font-weight:700;color:#74a9f5;margin-bottom:8px;">Add as Extra Player?</div>
+        <div id="extra_modal_msg" style="font-size:12px;color:#888;line-height:1.6;margin-bottom:20px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onclick="cancelExtra()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+            Cancel
+          </button>
+          <button onclick="confirmExtra()" type="button"
+            style="padding:11px;border-radius:7px;background:rgba(116,169,245,0.15);color:#74a9f5;border:1px solid rgba(116,169,245,0.4);font-size:13px;font-weight:700;">
+            &#43; Add Extra
           </button>
         </div>
       </div>
@@ -153,18 +252,44 @@
     {% else %}
     {# ── No player on block ── #}
     <div style="padding:36px 24px;text-align:center;border-radius:12px;">
-      {% if pool_exhausted %}
+      {% if state.phase == "DONE" and not state.awaiting_transition %}
+        <div style="font-size:40px;margin-bottom:14px;">🏆</div>
+        <div style="font-size:16px;font-weight:700;color:#f39c12;margin-bottom:8px;">Auction Complete</div>
+        <div style="font-size:12px;color:#666;line-height:1.8;margin-bottom:20px;">
+          All rounds have been processed.<br>
+          Click <b style="color:#e74c3c;">End Auction</b> in the top-right to view the final summary.<br>
+          <span style="color:#555;">Or if new players were added via Admin,
+          click <b style="color:#74a9f5;">Check New Players</b> below.</span>
+        </div>
+        <form method="POST" action="/auction/next/" style="margin-top:8px;">
+          {% csrf_token %}
+          <button type="submit" class="btn-neutral" style="font-size:13px;padding:10px 24px;">
+            &#8635; Check New Players
+          </button>
+        </form>
+      {% elif pool_exhausted %}
         <div style="font-size:40px;margin-bottom:14px;">&#128461;</div>
         <div style="font-size:16px;font-weight:700;color:#f39c12;margin-bottom:8px;">
           No Players in Pool
         </div>
         <div style="font-size:12px;color:#666;line-height:1.8;margin-bottom:20px;">
-          All {{ state.current_category }} players have been processed.<br>
+          All players have been processed.<br>
           Add new players via
           <a href="/admin/" target="_blank" style="color:#74a9f5;">Admin &#8599;</a>
           or <a href="/auction/upload-csv/" style="color:#74a9f5;">CSV Upload</a>,
-          then click <b style="color:#fff;">Next Player</b> below to continue.<br>
+          then click <b style="color:#fff;">Refresh</b> below.<br>
           <span style="color:#555;">Use <b style="color:#aaa;">End Auction</b> above only when truly done.</span>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:4px;">
+          <a href="/auction/" class="btn-neutral" style="font-size:13px;padding:10px 24px;text-decoration:none;">
+            &#8635; Refresh
+          </a>
+          <form method="POST" action="/auction/next/">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary" style="font-size:13px;padding:10px 24px;">
+              Next Player &#8594;
+            </button>
+          </form>
         </div>
       {% elif state.awaiting_transition %}
         <div style="font-size:40px;margin-bottom:12px;">&#9203;</div>
@@ -174,7 +299,7 @@
         <div style="font-size:16px;font-weight:700;color:#888;">Loading next player&hellip;</div>
       {% endif %}
 
-      {% if not state.awaiting_transition %}
+      {% if not state.awaiting_transition and not pool_exhausted and state.phase != "DONE" %}
       <form method="POST" action="/auction/next/" style="margin-top:16px;">
         {% csrf_token %}
         <button type="submit" class="btn-primary" style="font-size:13px;padding:10px 24px;">
@@ -229,14 +354,17 @@
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
   input[type=number] { -moz-appearance:textfield; }
 
-  /* Force sell modal */
-  #force_sell_modal {
+  /* In-card modals (force sell, unsold, not playing, confirm extra) */
+  #force_sell_modal, #unsold_modal, #not_playing_modal, #confirm_extra_modal {
     display:none;
     position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;
     background:rgba(0,0,0,0.80);border-radius:12px;
     align-items:center;justify-content:center;
   }
-  #force_sell_modal.visible { display:flex; }
+  #force_sell_modal.visible,
+  #unsold_modal.visible,
+  #not_playing_modal.visible,
+  #confirm_extra_modal.visible { display:flex; }
 </style>
 
 <script>
@@ -264,20 +392,18 @@ function selectTeam(teamId, teamName) {
   if (sellBtn) { sellBtn.disabled = false; sellBtn.style.opacity = "1"; }
 }
 
-// ── Force sell modal state ──
+// ── Force sell modal ──
 let _forceSellAmount = null;
 
-function showForceSellModal(message) {
+function showForceSellModal(message, title) {
+  document.getElementById("force_sell_title").innerText = title || "Below Base Price";
   document.getElementById("force_sell_msg").innerText = message;
   document.getElementById("force_sell_modal").classList.add("visible");
 }
-
 function cancelForceSell() {
-  // Dismiss modal — player stays on block, nothing changes
   document.getElementById("force_sell_modal").classList.remove("visible");
   _forceSellAmount = null;
 }
-
 function confirmForceSell() {
   document.getElementById("force_sell_modal").classList.remove("visible");
   if (_forceSellAmount === null) return;
@@ -287,6 +413,70 @@ function confirmForceSell() {
     "&amount=" + _forceSellAmount + "&force=true"
   );
   _forceSellAmount = null;
+}
+
+// ── Unsold modal ──
+function unsoldPlayer() {
+  document.getElementById("unsold_modal").classList.add("visible");
+}
+function cancelUnsold() {
+  document.getElementById("unsold_modal").classList.remove("visible");
+}
+function confirmUnsold() {
+  document.getElementById("unsold_modal").classList.remove("visible");
+  post("/auction/unsold/", "player_id={{ player.serial_number|default:0 }}");
+}
+
+// ── Not Playing modal ──
+function notPlaying() {
+  document.getElementById("not_playing_modal").classList.add("visible");
+}
+function cancelNotPlaying() {
+  document.getElementById("not_playing_modal").classList.remove("visible");
+}
+function confirmNotPlaying() {
+  document.getElementById("not_playing_modal").classList.remove("visible");
+  post("/auction/not-playing/", "player_id={{ player.serial_number|default:0 }}");
+}
+
+// ── Confirm extra modal ──
+let _extraAmount = null;
+function showExtraModal(teamName, squadCount, maxSlots) {
+  _extraAmount = document.getElementById("bid_amount").value;
+  document.getElementById("extra_modal_msg").innerHTML =
+    "<b>" + teamName + "</b> already has <b>" + squadCount + "</b> players (squad limit: " + maxSlots + ").<br>Add this player as an extra anyway?";
+  document.getElementById("confirm_extra_modal").classList.add("visible");
+}
+function cancelExtra() {
+  document.getElementById("confirm_extra_modal").classList.remove("visible");
+  _extraAmount = null;
+}
+function confirmExtra() {
+  document.getElementById("confirm_extra_modal").classList.remove("visible");
+  if (_extraAmount === null) return;
+  post(
+    "/auction/sell/",
+    "player_id={{ player.serial_number|default:0 }}&team_id=" + selectedTeamId +
+    "&amount=" + _extraAmount + "&extra=true"
+  );
+  _extraAmount = null;
+}
+
+// ── Undo modal (page-level) ──
+function showUndoModal() {
+  const m = document.getElementById("undo_modal");
+  m.style.display = "flex";
+}
+function hideUndoModal() {
+  document.getElementById("undo_modal").style.display = "none";
+}
+
+// ── End Auction modal (page-level) ──
+function showEndAuctionModal() {
+  document.getElementById("end_auction_modal").style.display = "flex";
+}
+function hideEndAuctionModal() {
+  document.getElementById("end_auction_modal").style.display = "none";
 }
 
 function post(url, body) {
@@ -302,16 +492,12 @@ function post(url, body) {
     if (d.status === "ok") {
       location.reload();
     } else if (d.status === "below_base") {
-      // Soft warning — show inline modal with Force Sell / Continue choice
       _forceSellAmount = document.getElementById("bid_amount").value;
-      showForceSellModal(d.message);
+      const title = d.message && d.message.startsWith("⚠ Unsafe") ? "⚠ Unsafe Bid" : "Below Base Price";
+      showForceSellModal(d.message, title);
     } else if (d.status === "confirm_extra") {
-      if (confirm(d.team_name + " already has " + d.squad_count + " players (max " + d.max_slots + "). Add as extra?")) {
-        const amount = document.getElementById("bid_amount").value;
-        post("/auction/sell/", "player_id={{ player.serial_number|default:0 }}&team_id=" + selectedTeamId + "&amount=" + amount + "&extra=true");
-      }
+      showExtraModal(d.team_name, d.squad_count, d.max_slots);
     } else {
-      // Hard error — show inline message, player stays on block
       if (msg) msg.innerText = d.message || "Error — try again";
     }
   })
@@ -319,19 +505,13 @@ function post(url, body) {
 }
 
 function sellPlayer() {
-  if (!selectedTeamId) { alert("Select a team first"); return; }
+  if (!selectedTeamId) {
+    const msg = document.getElementById("action_msg");
+    if (msg) { msg.style.color="#e74c3c"; msg.innerText = "Select a team first"; }
+    return;
+  }
   const amount = document.getElementById("bid_amount").value;
   post("/auction/sell/", "player_id={{ player.serial_number|default:0 }}&team_id=" + selectedTeamId + "&amount=" + amount);
-}
-
-function unsoldPlayer() {
-  if (!confirm("Mark as unsold?")) return;
-  post("/auction/unsold/", "player_id={{ player.serial_number|default:0 }}");
-}
-
-function notPlaying() {
-  if (!confirm("Mark as not playing?")) return;
-  post("/auction/not-playing/", "player_id={{ player.serial_number|default:0 }}");
 }
 
 // Auto-reload only when a player is expected but not yet picked

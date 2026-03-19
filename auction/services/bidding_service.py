@@ -47,7 +47,7 @@ class BiddingService:
                 False
             )
 
-        # Rule 3 (hard): safe bid — enough left to fill remaining slots
+        # Rule 3 (soft): safe bid — enough left to fill remaining slots — force-sellable
         if config:
             squad_size      = team.player_set.filter(status=Player.STATUS_SOLD).count()
             remaining_slots = config.bidding_slots - squad_size
@@ -60,7 +60,7 @@ class BiddingService:
                         f"⚠ Unsafe bid — {team.name} would have ₹{points_after} left "
                         f"but needs ₹{int(minimum_needed)} minimum to fill "
                         f"{remaining_slots - 1} remaining slot(s).",
-                        False
+                        True   # is_below_base — force-sellable
                     )
 
         return None, False  # valid
@@ -69,14 +69,15 @@ class BiddingService:
     # SELL PLAYER
     # ─────────────────────────────────────────────
 
-    def sell_player(self, player_id, team_id, amount, force=False):
+    def sell_player(self, player_id, team_id, amount, force=False, extra=False):
         """
-        force=True bypasses below-base-price AND all other validation.
+        force=True  → bypasses below-base-price AND all other validation (force sell).
+        extra=True  → user confirmed adding beyond squad slots; still validates points.
         Returns (success, error_message, is_below_base).
         is_below_base=True  → caller should offer Force Sell option.
         is_below_base=False → hard error, no force option.
         """
-        logger.info(f"sell_player: player={player_id} team={team_id} amount={amount} force={force}")
+        logger.info(f"sell_player: player={player_id} team={team_id} amount={amount} force={force} extra={extra}")
         player = Player.objects.get(serial_number=player_id)
         team   = Team.objects.get(team_serial_number=team_id)
         amount = int(amount)
@@ -91,7 +92,7 @@ class BiddingService:
         squad_size = team.player_set.filter(status=Player.STATUS_SOLD).count()
         over_slots = config and squad_size >= config.bidding_slots
 
-        if over_slots and not force:
+        if over_slots and not force and not extra:
             return False, None, False  # signal: confirm_extra required
 
         player.team       = team
@@ -107,6 +108,7 @@ class BiddingService:
             amount   = amount,
             round    = state.auction_round,
             category = state.current_category,
+            phase    = state.phase,
         )
 
         self.engine.clear_current_player()
@@ -147,6 +149,7 @@ class BiddingService:
             action   = action_type,
             round    = state.auction_round,
             category = state.current_category,
+            phase    = state.phase,
         )
 
         self.engine.clear_current_player()
@@ -167,6 +170,7 @@ class BiddingService:
             action   = "NOT_PLAYING",
             round    = state.auction_round,
             category = state.current_category,
+            phase    = state.phase,
         )
 
         self.engine.clear_current_player()
@@ -177,7 +181,7 @@ class BiddingService:
 
     def undo_last_action(self):
         logger.info("undo_last_action called")
-        action = AuctionAction.objects.exclude(action="UNDO").last()
+        action = AuctionAction.objects.exclude(action="UNDO").order_by("pk").last()
         if not action:
             return
 
@@ -208,6 +212,7 @@ class BiddingService:
             action   = "UNDO",
             round    = state.auction_round,
             category = state.current_category,
+            phase    = state.phase,
         )
         action.delete()
         self.engine.restore_player(player)

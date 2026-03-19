@@ -81,11 +81,25 @@
       </div>
     {% endif %}
 
-    <button type="submit" class="btn-primary" style="width:100%;padding:13px;font-size:15px;">
+    <button type="submit" class="btn-primary" style="width:100%;padding:13px;font-size:15px; margin-bottom: 30px;">
       Save Settings
     </button>
 
   </form>
+
+  <div style="border-top:1px solid #1a1a2e; margin: 30px 0 22px;"></div>
+
+  <div style="background: rgba(231, 76, 60, 0.05); border: 1px solid rgba(231, 76, 60, 0.2); border-radius: 12px; padding: 24px;">
+    <h3 style="font-size: 14px; font-weight: 800; color: var(--primary-red); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;">Danger Zone</h3>
+    <p style="font-size: 11px; color: #666; margin-bottom: 20px; line-height: 1.5;">Resetting the auction will clear all sales, reset player statuses to AVAILABLE, and wipe the current tournament configuration. This action cannot be undone.</p>
+    
+    <form method="POST" action="/auction/reset/" onsubmit="return confirm('EXTREME DANGER: This will delete ALL auction results and settings. Continue?')">
+      {% csrf_token %}
+      <button type="submit" class="btn-danger" style="width: 100%; padding: 12px; font-size: 13px; letter-spacing: 1px; font-weight: 800; border-radius: 8px;">
+        RESET ENTIRE AUCTION
+      </button>
+    </form>
+  </div>
 </div>
 
 {% endblock %}

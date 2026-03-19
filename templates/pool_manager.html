@@ -308,9 +308,9 @@
         AUTOMATIC SCHEDULE
       </button>
     </form>
-    <button onclick="openSpinDraw()" class="btn-gradient-purple" style="padding:15px 35px;border-radius:12px;font-size:16px;letter-spacing:1px;">
+    <a href="/fixtures/draw/" class="btn-gradient-purple" style="padding:15px 35px;border-radius:12px;font-size:16px;letter-spacing:1px;text-decoration:none;display:inline-block;">
       DRAW CEREMONY
-    </button>
+    </a>
   </div>
   <div style="margin-top:20px;">
      <a href="/fixtures/draw/" style="font-size:12px;color:#555;text-decoration:none;border-bottom:1px solid #333;">Or use the manual Draw page →</a>
@@ -386,49 +386,6 @@
 {% endif %}
 
 {% endif %}{# end steps #}
-
-
-{# ── Spin Draw modal ─────────────────────────────────────────── #}
-<div id="spin_draw_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(10px);">
-  <div style="background:linear-gradient(160deg, #0e0e1a, #06060c);border:1px solid rgba(255,255,255,0.12);border-radius:30px;padding:40px;width:94%;max-width:500px;text-align:center;position:relative;box-shadow: 0 0 100px rgba(0,0,0,1);">
-    <button onclick="closeSpinDraw()" style="position:absolute;top:20px;right:25px;background:none;border:none;color:#444;font-size:24px;cursor:pointer;">✕</button>
-
-    <div style="font-size:10px;color:#8e44ad;text-transform:uppercase;letter-spacing:4px;margin-bottom:8px;font-weight:900;">Grand Ceremony</div>
-    <div id="sd_counter" style="font-size:13px;color:#555;margin-bottom:25px;letter-spacing:0.5px;">Spin to reveal the tournament schedule</div>
-
-    {# Wheel #}
-    <div style="position:relative;display:inline-block;margin-bottom:25px;">
-      <div style="position:absolute;top:-15px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:25px solid #9b59b6;z-index:10;filter:drop-shadow(0 4px 6px rgba(0,0,0,.8));"></div>
-      <canvas id="sd_wheel" width="340" height="340" style="border-radius:50%;box-shadow:0 0 60px rgba(142,68,173,0.4),0 0 0 5px rgba(255,255,255,0.03);"></canvas>
-    </div>
-
-    {# Revealed match display #}
-    <div id="sd_result" style="display:none;margin-bottom:20px;padding:25px;border-radius:15px;background:rgba(142,68,173,0.08);border:1px solid rgba(142,68,173,0.3);animation:scaleIn 0.3s;">
-      <div id="sd_match_num" style="font-size:10px;color:#8e44ad;text-transform:uppercase;letter-spacing:3px;margin-bottom:12px;font-weight:800;"></div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:15px;">
-        <div id="sd_team1" style="font-size:22px;font-weight:900;color:#fff;"></div>
-        <div style="font-size:14px;color:#444;font-weight:900;">VS</div>
-        <div id="sd_team2" style="font-size:22px;font-weight:900;color:#fff;"></div>
-      </div>
-      <div id="sd_pool_label" style="font-size:12px;color:#8e44ad;margin-top:10px;font-weight:700;"></div>
-    </div>
-
-    <div id="sd_done_msg" style="display:none;padding:25px;border-radius:15px;background:rgba(46,204,113,0.05);border:1px solid rgba(46,204,113,0.2);margin-bottom:20px;">
-      <div style="font-size:40px;margin-bottom:10px;">🏆</div>
-      <div style="font-size:18px;font-weight:900;color:#2ecc71;">All Fixtures Drawn!</div>
-    </div>
-
-    <div id="sd_err" style="display:none;font-size:12px;color:#e74c3c;margin-bottom:15px;background:rgba(231,76,60,0.1);padding:10px;border-radius:8px;"></div>
-
-    <button id="sd_spin_btn" onclick="sdSpin()" class="btn-gradient-purple"
-      style="font-size:18px;font-weight:800;padding:16px 50px;border-radius:12px;letter-spacing:3px;width:100%;margin-bottom:10px;cursor:pointer;">
-      🎰 SPIN
-    </button>
-    <button onclick="closeSpinDraw()" style="background:rgba(255,255,255,0.02);color:#444;border:1px solid rgba(255,255,255,0.05);padding:12px 20px;border-radius:10px;font-size:13px;width:100%;cursor:pointer;">
-      Cancel
-    </button>
-  </div>
-</div>
 
 
 {# Result modal #}
@@ -561,110 +518,6 @@ function submitResult(){
 }
 document.getElementById("result_modal").addEventListener("click",function(e){if(e.target===this)closeResult();});
 drawWheel(0);
-
-// ─── Spin Draw ────────────────────────────────────────────────
-const SD_PALETTE = ["#9b59b6","#8e44ad","#6c3483","#a569bd","#7d3c98","#bb8fce","#5b2c6f","#d2b4de","#4a235a","#c39bd3"];
-let sdAngle = 0, sdSpinning = false, sdAllDone = false;
-const sdTeams = [{% for info in pools_info %}{% if info.pool.stage == "GROUP" %}{% for team in info.pool.teams.all %}{ name:"{{ team.name|escapejs }}", pool:"{{ info.pool.name }}" },{% endfor %}{% endif %}{% endfor %}];
-
-function drawSdWheel(angle) {
-  const canvas = document.getElementById("sd_wheel"); if (!canvas) return;
-  const ctx = canvas.getContext("2d"), cx = canvas.width/2, cy = canvas.height/2, r = cx - 5;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!sdTeams.length) return;
-  const n = sdTeams.length, sl = Math.PI*2/n;
-  sdTeams.forEach((t, i) => {
-    const s = angle + i*sl, e = s + sl;
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,s,e); ctx.closePath();
-    ctx.fillStyle = SD_PALETTE[i % SD_PALETTE.length]; ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.save(); ctx.translate(cx,cy); ctx.rotate(s + sl/2); ctx.textAlign = "right";
-    ctx.fillStyle = "#fff"; ctx.font = `900 ${n > 12 ? 10 : 12}px sans-serif`;
-    ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
-    ctx.fillText(t.name.length > 13 ? t.name.slice(0,12)+"…" : t.name, r - 12, 4);
-    ctx.restore();
-  });
-  ctx.beginPath(); ctx.arc(cx,cy,22,0,Math.PI*2);
-  ctx.fillStyle = "#050510"; ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 3; ctx.stroke();
-}
-
-function openSpinDraw() {
-  sdAllDone = false;
-  document.getElementById("sd_result").style.display = "none";
-  document.getElementById("sd_done_msg").style.display = "none";
-  document.getElementById("sd_err").style.display = "none";
-  document.getElementById("sd_spin_btn").disabled = false;
-  document.getElementById("sd_spin_btn").style.opacity = "1";
-  document.getElementById("sd_counter").innerText = "Spin to reveal each match";
-  document.getElementById("spin_draw_modal").style.display = "flex";
-  drawSdWheel(sdAngle);
-}
-
-function closeSpinDraw() {
-  document.getElementById("spin_draw_modal").style.display = "none";
-  if (sdAllDone) location.reload();
-}
-
-function sdSpin() {
-  if (sdSpinning || sdAllDone) return;
-  sdSpinning = true;
-  document.getElementById("sd_spin_btn").disabled = true;
-  document.getElementById("sd_spin_btn").style.opacity = "0.5";
-  document.getElementById("sd_result").style.display = "none";
-  document.getElementById("sd_err").style.display = "none";
-  const extra = 6 + Math.random()*5;
-  const target = sdAngle + extra*Math.PI*2 + Math.random()*Math.PI*2;
-  const dur = 4000, start = sdAngle, t0 = performance.now();
-  function ease(t){ return 1 - Math.pow(1-t, 5); }
-  function frame(now) {
-    const p = Math.min((now-t0)/dur, 1);
-    sdAngle = start + (target-start)*ease(p);
-    drawSdWheel(sdAngle);
-    if (p < 1) { requestAnimationFrame(frame); }
-    else { sdAngle %= Math.PI*2; sdSpinning = false; sdReveal(); }
-  }
-  requestAnimationFrame(frame);
-}
-
-function sdReveal() {
-  const data = new URLSearchParams();
-  fetch("/fixtures/draw/spin-next/", { method:"POST", body:data })
-  .then(r => r.json()).then(d => {
-    if (d.status === "ok") {
-      document.getElementById("sd_match_num").innerText = "Match " + d.match_number + " · Group " + d.pool;
-      document.getElementById("sd_team1").innerText = d.team1;
-      document.getElementById("sd_team2").innerText = d.team2;
-      document.getElementById("sd_pool_label").innerText = "Group " + d.pool;
-      document.getElementById("sd_result").style.display = "block";
-      document.getElementById("sd_counter").innerText = d.remaining + " match" + (d.remaining !== 1 ? "es" : "") + " remaining";
-      document.getElementById("sd_spin_btn").disabled = false;
-      document.getElementById("sd_spin_btn").style.opacity = "1";
-      if (d.remaining === 0) {
-        sdAllDone = true;
-        document.getElementById("sd_spin_btn").style.display = "none";
-        document.getElementById("sd_done_msg").style.display = "block";
-        document.getElementById("sd_counter").innerText = "Ceremony complete!";
-      }
-    } else if (d.status === "done") {
-      sdAllDone = true;
-      document.getElementById("sd_done_msg").style.display = "block";
-      document.getElementById("sd_spin_btn").style.display = "none";
-      document.getElementById("sd_counter").innerText = "Ceremony complete!";
-    } else {
-      document.getElementById("sd_err").innerText = "Error: " + (d.message || "unknown");
-      document.getElementById("sd_err").style.display = "block";
-      document.getElementById("sd_spin_btn").disabled = false;
-      document.getElementById("sd_spin_btn").style.opacity = "1";
-    }
-  }).catch(() => {
-    document.getElementById("sd_err").innerText = "Network error. Try again.";
-    document.getElementById("sd_err").style.display = "block";
-    document.getElementById("sd_spin_btn").disabled = false;
-    document.getElementById("sd_spin_btn").style.opacity = "1";
-  });
-}
-
-document.getElementById("spin_draw_modal").addEventListener("click", function(e){ if(e.target===this) closeSpinDraw(); });
 </script>
 
 <style>

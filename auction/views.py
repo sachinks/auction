@@ -80,7 +80,9 @@ def public_board(request):
     interleaved_sched = []
     any_match_played  = False
 
-    if state.phase == AuctionState.PHASE_DONE:
+    show_summary = state.phase == AuctionState.PHASE_DONE and not state.is_active
+
+    if show_summary:
         group_pools = TournamentPool.objects.filter(
             stage=TournamentPool.STAGE_GROUP
         ).order_by("order").prefetch_related("teams")
@@ -117,6 +119,7 @@ def public_board(request):
         "unsold_count":         unsold_count,
         "banner_url":           banner_url,
         "round_label":          round_label(state.current_category, state.phase, state.category_pass),
+        "show_summary":         show_summary,
         "pools_data":           pools_data,
         "interleaved_sched":    interleaved_sched,
         "any_match_played":     any_match_played,
@@ -215,7 +218,7 @@ def start_auction(request):
             base_price_BOWL    = request.POST.get("base_price_BOWL"),
             base_price_PLY     = request.POST.get("base_price_PLY"),
             category_order     = request.POST.get("category_order", "AR,BAT,BOWL,PLY"),
-            max_rebid_attempts = request.POST.get("max_rebid_attempts", 3),
+            max_rebid_attempts = request.POST.get("max_rebid_attempts", 4),
         )
 
         for team in Team.objects.all():
@@ -254,6 +257,23 @@ def next_player(request):
     try:
         auction_logger.debug(f"next_player by {request.user}")
         engine = AuctionEngine()
+
+        # If auction is marked DONE but admin added new available players,
+        # re-activate so the engine can pick them up.
+        state = AuctionState.get()
+        if state.phase == AuctionState.PHASE_DONE:
+            new_player = Player.objects.filter(status=Player.STATUS_AVAILABLE).first()
+            if new_player:
+                auction_logger.info(
+                    f"next_player: phase=DONE but new player found ({new_player.name}) — re-activating"
+                )
+                state.phase               = AuctionState.PHASE_MAIN
+                state.current_category    = new_player.role
+                state.is_active           = True
+                state.awaiting_transition = False
+                state.transition_message  = ""
+                state.save()
+
         player = engine.advance_to_next_player()
         if player:
             auction_logger.info(f"next_player: on block → {player.name}")
@@ -296,7 +316,7 @@ def sell_player(request):
                 "max_slots":    config.bidding_slots if config else "?",
             })
 
-        success, error, is_below_base = service.sell_player(player_id, team_id, amount, force=force or extra)
+        success, error, is_below_base = service.sell_player(player_id, team_id, amount, force=force, extra=extra)
 
         if success:
             return JsonResponse({"status": "ok"})
@@ -484,12 +504,14 @@ def upload_csv(request):
 
         # ── Load a bundled demo file (no upload needed) ──────
         if action == "load_demo":
-            demo_file = request.POST.get("demo_file", "short_players")
+            demo_file = request.POST.get("demo_file", "small_players")
             FILE_MAP  = {
-                "short_teams":   ("teams",   "short_teams.csv"),
-                "short_players": ("players", "short_players.csv"),
-                "long_teams":    ("teams",   "long_teams.csv"),
-                "long_players":  ("players", "long_players.csv"),
+                "small_teams":   ("teams",   "small_teams.csv"),
+                "small_players": ("players", "small_players.csv"),
+                "medium_teams":  ("teams",   "medium_teams.csv"),
+                "medium_players":("players", "medium_players.csv"),
+                "large_teams":   ("teams",   "large_teams.csv"),
+                "large_players": ("players", "large_players.csv"),
             }
             if demo_file not in FILE_MAP:
                 result = {"error": "Unknown demo file selected."}
@@ -559,14 +581,16 @@ def load_sample_data(request):
     if request.method != "POST":
         return JsonResponse({"status": "invalid"})
     try:
-        dataset  = request.POST.get("dataset")  # short_players | short_teams | long_players | long_teams
+        dataset  = request.POST.get("dataset")
         csv_type = request.POST.get("csv_type") # players | teams
 
         allowed = {
-            "short_players": ("players", "short_players.csv"),
-            "short_teams":   ("teams",   "short_teams.csv"),
-            "long_players":  ("players", "long_players.csv"),
-            "long_teams":    ("teams",   "long_teams.csv"),
+            "small_players":  ("players", "small_players.csv"),
+            "small_teams":    ("teams",   "small_teams.csv"),
+            "medium_players": ("players", "medium_players.csv"),
+            "medium_teams":   ("teams",   "medium_teams.csv"),
+            "large_players":  ("players", "large_players.csv"),
+            "large_teams":    ("teams",   "large_teams.csv"),
         }
         if dataset not in allowed:
             return JsonResponse({"status": "error", "message": "Unknown dataset"})
@@ -601,10 +625,12 @@ def download_sample_csv(request, name):
     """Serve a sample CSV file as a download."""
     import os
     allowed = {
-        "short_teams":   "short_teams.csv",
-        "short_players": "short_players.csv",
-        "long_teams":    "long_teams.csv",
-        "long_players":  "long_players.csv",
+        "small_teams":    "small_teams.csv",
+        "small_players":  "small_players.csv",
+        "medium_teams":   "medium_teams.csv",
+        "medium_players": "medium_players.csv",
+        "large_teams":    "large_teams.csv",
+        "large_players":  "large_players.csv",
     }
     if name not in allowed:
         from django.http import Http404
@@ -985,6 +1011,58 @@ def export_jersey_pdf(request):
     except Exception as e:
         error_logger.error(f"export_jersey_pdf error: {e}\n{traceback.format_exc()}")
         return HttpResponse(f"PDF generation error: {e}", status=500)
+
+
+@login_required
+def export_players_jersey_pdf(request):
+    try:
+        buf = JerseyService().export_players_pdf()
+        system_logger.info(f"export_players_jersey_pdf downloaded by {request.user}")
+        response = HttpResponse(buf, content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=players_jersey_list.pdf"
+        return response
+    except Exception as e:
+        error_logger.error(f"export_players_jersey_pdf error: {e}\n{traceback.format_exc()}")
+        return HttpResponse(f"PDF generation error: {e}", status=500)
+
+
+@login_required
+def export_players_jersey_excel(request):
+    try:
+        buf = JerseyService().export_players_excel()
+        system_logger.info(f"export_players_jersey_excel downloaded by {request.user}")
+        response = HttpResponse(buf, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = "attachment; filename=players_jersey_list.xlsx"
+        return response
+    except Exception as e:
+        error_logger.error(f"export_players_jersey_excel error: {e}\n{traceback.format_exc()}")
+        return HttpResponse(f"Excel generation error: {e}", status=500)
+
+
+@login_required
+def export_organisers_jersey_pdf(request):
+    try:
+        buf = JerseyService().export_organisers_pdf()
+        system_logger.info(f"export_organisers_jersey_pdf downloaded by {request.user}")
+        response = HttpResponse(buf, content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=organisers_jersey_list.pdf"
+        return response
+    except Exception as e:
+        error_logger.error(f"export_organisers_jersey_pdf error: {e}\n{traceback.format_exc()}")
+        return HttpResponse(f"PDF generation error: {e}", status=500)
+
+
+@login_required
+def export_organisers_jersey_excel(request):
+    try:
+        buf = JerseyService().export_organisers_excel()
+        system_logger.info(f"export_organisers_jersey_excel downloaded by {request.user}")
+        response = HttpResponse(buf, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = "attachment; filename=organisers_jersey_list.xlsx"
+        return response
+    except Exception as e:
+        error_logger.error(f"export_organisers_jersey_excel error: {e}\n{traceback.format_exc()}")
+        return HttpResponse(f"Excel generation error: {e}", status=500)
 
 
 # ────────────────────────────────────────────────
@@ -1423,7 +1501,10 @@ def fixture_spin_next(request):
     if request.method != "POST":
         return JsonResponse({"status": "invalid"})
     try:
-        result = generate_next_match()
+        team_id = request.POST.get("team_id") or None
+        save    = request.POST.get("save", "true").lower() == "true"
+        
+        result = generate_next_match(team_id=team_id, save=save)
         if result is None:
             return JsonResponse({"status": "done"})
         return JsonResponse({"status": "ok", **result})
