@@ -19,6 +19,27 @@
       </button>
     </form>
     {% else %}
+    {% if state.phase == "SPIN" %}
+    <div style="font-size:48px;margin-bottom:16px;">🎰</div>
+    <div style="font-size:22px;font-weight:800;color:#a855f7;margin-bottom:12px;">{{ state.transition_message }}</div>
+    <div style="font-size:12px;color:#555;margin-bottom:28px;">Unsold players will be assigned to eligible teams via spin wheel</div>
+    <form method="POST" action="/auction/continue/">
+      {% csrf_token %}
+      <button type="submit" style="width:100%;font-size:18px;padding:16px;border-radius:8px;background:linear-gradient(135deg,rgba(155,89,182,0.5),rgba(125,60,152,0.4));color:#fff;border:1px solid rgba(155,89,182,0.7);font-weight:900;cursor:pointer;">
+        🎰 Start SPIN Round →
+      </button>
+    </form>
+    {% elif state.phase == "REBID" %}
+    <div style="font-size:48px;margin-bottom:16px;">🔄</div>
+    <div style="font-size:22px;font-weight:800;color:#e67e22;margin-bottom:12px;">{{ state.transition_message }}</div>
+    <div style="font-size:12px;color:#555;margin-bottom:28px;">Unsold players get one more chance to be bought</div>
+    <form method="POST" action="/auction/continue/">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary" style="width:100%;font-size:18px;padding:16px;">
+        Start Rebid Round →
+      </button>
+    </form>
+    {% else %}
     <div style="font-size:36px;margin-bottom:16px;">🏏</div>
     <div style="font-size:22px;font-weight:800;color:#f39c12;margin-bottom:12px;">{{ state.transition_message }}</div>
     <div style="font-size:12px;color:#555;margin-bottom:28px;">Click Continue when ready to start the next round</div>
@@ -28,6 +49,7 @@
         Continue →
       </button>
     </form>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -50,10 +72,7 @@
   <div style="display:flex;gap:8px;">
     <button type="button" onclick="showUndoModal()"
       class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8617; Undo</button>
-    <form method="POST" action="/auction/refresh/" style="display:inline;">
-      {% csrf_token %}
-      <button type="submit" class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8635; Refresh Points</button>
-    </form>
+    <button type="button" onclick="refreshPoints()" class="btn-neutral" style="font-size:12px;padding:6px 14px;">&#8635; Refresh Points</button>
     <button type="button" onclick="showEndAuctionModal()"
       style="background:rgba(231,76,60,0.12);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);font-size:12px;padding:6px 14px;border-radius:6px;font-weight:700;">
       &#127937; End Auction
@@ -105,6 +124,49 @@
   </div>
 </div>
 
+{# ── All Bidding Slots Full modal (info only — no action) ── #}
+<div id="all_teams_full_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:#12121e;border:1px solid rgba(52,152,219,0.45);border-radius:12px;padding:32px 28px;max-width:380px;width:92%;text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px;">&#9989;</div>
+    <div style="font-size:16px;font-weight:800;color:#3498db;margin-bottom:10px;">All Teams Ready!</div>
+    <div style="font-size:12px;color:#888;line-height:1.7;margin-bottom:24px;">
+      All teams have filled their available bidding slots
+      <b style="color:#f39c12;">({{ config.bidding_slots }} players)</b>.<br>
+      Continue the auction to finish remaining rounds.
+    </div>
+    <button onclick="document.getElementById('all_teams_full_modal').style.display='none';" type="button"
+      style="width:100%;padding:12px;border-radius:7px;background:rgba(52,152,219,0.18);color:#3498db;border:1px solid rgba(52,152,219,0.45);font-size:13px;font-weight:700;">
+      &#10003; Got it
+    </button>
+  </div>
+</div>
+
+{# ── All Teams Max Capacity modal ── #}
+<div id="all_teams_max_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:#12121e;border:1px solid rgba(243,156,18,0.45);border-radius:12px;padding:32px 28px;max-width:380px;width:92%;text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px;">&#127942;</div>
+    <div style="font-size:16px;font-weight:800;color:#f39c12;margin-bottom:10px;">All Squads Complete!</div>
+    <div style="font-size:12px;color:#888;line-height:1.7;margin-bottom:24px;">
+      All teams have reached their maximum squad size
+      <b style="color:#f39c12;">({{ config.max_squad_size }} players)</b>.<br>
+      The auction is ready to be completed.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="document.getElementById('all_teams_max_modal').style.display='none';" type="button"
+        style="padding:12px;border-radius:7px;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.12);font-size:13px;font-weight:700;">
+        Cancel
+      </button>
+      <form method="POST" action="/auction/complete/" style="margin:0;">
+        {% csrf_token %}
+        <button type="submit"
+          style="width:100%;padding:12px;border-radius:7px;background:rgba(243,156,18,0.18);color:#f39c12;border:1px solid rgba(243,156,18,0.45);font-size:13px;font-weight:700;">
+          &#127937; End Auction
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% if show_spin_round %}
 {# ══════════════════════════════════════════════════════════════════════ #}
 {# ── SPIN ROUND (icon rebid — dual spin board) ── #}
@@ -114,11 +176,12 @@
   {# Header #}
   <div style="background:linear-gradient(135deg,rgba(155,89,182,0.2),rgba(125,60,152,0.12));padding:18px 24px;border-bottom:1px solid rgba(155,89,182,0.2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
     <div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:4px;color:#a855f7;margin-bottom:4px;">&#9670; Spin Round &#9670;</div>
-      <div style="font-size:18px;font-weight:900;color:#fff;">{{ current_round_label }}</div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:4px;color:#a855f7;margin-bottom:4px;">&#127922; SPIN ROUND GOING ON &#127922;</div>
+      <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:1px;">{{ current_round_label }}</div>
+      <div style="font-size:11px;color:#666;margin-top:3px;">Spin to assign unsold players to teams without this role</div>
     </div>
     <div style="display:flex;gap:16px;font-size:11px;color:#666;">
-      <span>&#127899; <b style="color:#a855f7;">{{ spin_round_players|length }}</b> unsold</span>
+      <span>&#127899; <b style="color:#a855f7;">{{ spin_round_players|length }}</b> unsold players</span>
       <span>&#127942; <b style="color:#f39c12;">{{ spin_round_teams|length }}</b> eligible teams</span>
     </div>
   </div>
@@ -131,7 +194,7 @@
       {# ── LEFT: Player wheel ── #}
       <div>
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#a855f7;margin-bottom:10px;text-align:center;">Unsold Players</div>
-        <div id="sr_player_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;">
+        <div id="sr_player_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
           {% for p in spin_round_players %}
           <div class="sr-cell" data-id="{{ p.serial_number }}" data-name="{{ p.name|escapejs }}" data-base="{{ p.base_price }}">
             <div style="font-family:'Orbitron';font-size:9px;color:#555;margin-bottom:2px;">#{{ p.serial_number }}</div>
@@ -140,10 +203,6 @@
           </div>
           {% endfor %}
         </div>
-        <button onclick="srSpinPlayer()" id="sr_spin_player_btn" type="button"
-          style="width:100%;padding:11px;border-radius:8px;background:rgba(155,89,182,0.15);color:#a855f7;border:1px solid rgba(155,89,182,0.35);font-size:13px;font-weight:800;">
-          &#127931; Spin Player
-        </button>
       </div>
 
       {# ── MIDDLE: Spin Both + result ── #}
@@ -154,7 +213,7 @@
                  color:#fff;border:1px solid rgba(155,89,182,0.5);font-size:12px;font-weight:900;
                  letter-spacing:1px;text-align:center;line-height:1.4;
                  animation:srPulse 2s ease-in-out infinite;">
-          &#9670;<br>SPIN<br>BOTH<br>&#9670;
+          &#9670;<br>SPIN<br>&#9670;
         </button>
         <div id="sr_result_mid" style="display:none;text-align:center;font-size:11px;color:#aaa;line-height:1.6;">
           <div id="sr_result_player" style="color:#a855f7;font-weight:700;"></div>
@@ -171,7 +230,7 @@
       {# ── RIGHT: Team wheel ── #}
       <div>
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#f39c12;margin-bottom:10px;text-align:center;">Eligible Teams</div>
-        <div id="sr_team_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;">
+        <div id="sr_team_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
           {% for t in spin_round_teams %}
           <div class="sr-cell sr-cell-team" data-id="{{ t.team_serial_number }}" data-name="{{ t.name|escapejs }}">
             <div style="font-family:'Orbitron';font-size:14px;font-weight:900;color:#f39c12;line-height:1;">{{ t.get_short }}</div>
@@ -180,10 +239,6 @@
           </div>
           {% endfor %}
         </div>
-        <button onclick="srSpinTeam()" id="sr_spin_team_btn" type="button"
-          style="width:100%;padding:11px;border-radius:8px;background:rgba(243,156,18,0.12);color:#f39c12;border:1px solid rgba(243,156,18,0.3);font-size:13px;font-weight:800;">
-          &#127931; Spin Team
-        </button>
       </div>
 
     </div>{# end three-column #}
@@ -255,51 +310,7 @@
       </div>
     </div>
 
-    {# ── Casino-grid assign modal (icon round, max rebid reached) ── #}
-    <div id="spin_modal">
-      <div style="background:#0e0e1c;border:2px solid rgba(155,89,182,0.5);border-radius:14px;padding:24px 20px;max-width:420px;width:94%;text-align:center;box-shadow:0 0 40px rgba(155,89,182,0.2);">
 
-        {# Title #}
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#a855f7;margin-bottom:4px;">&#9670; Icon Assignment &#9670;</div>
-        <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px;">
-          {% if player %}{{ player.name }}{% endif %}
-        </div>
-        <div style="font-size:11px;color:#555;margin-bottom:16px;">Max rebid reached &mdash; assigning to a team that needs this role</div>
-
-        {# Casino grid of team boxes #}
-        <div id="casino_grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
-          {% for t in spin_teams %}
-          <div class="casino-cell" data-team-id="{{ t.team_serial_number }}" data-team-name="{{ t.name|escapejs }}">
-            <div style="font-size:16px;font-weight:900;line-height:1;">{{ t.get_short }}</div>
-            <div style="font-size:10px;margin-top:3px;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.name }}</div>
-            <div style="font-size:10px;margin-top:2px;color:#2ecc71;">&#8377;{{ t.remaining_points }}</div>
-          </div>
-          {% endfor %}
-        </div>
-
-        {# Winner banner #}
-        <div id="spin_result" style="display:none;font-size:13px;font-weight:800;margin-bottom:14px;padding:10px 12px;background:rgba(155,89,182,0.15);border:1px solid rgba(155,89,182,0.4);border-radius:8px;color:#fff;">
-          &#127881; Assigned to: <span id="spin_winner_name" style="color:#c084fc;"></span>
-          &nbsp;&mdash;&nbsp;&#8377;<span id="spin_price_display">{% if player %}{{ player.base_price }}{% endif %}</span>
-        </div>
-
-        {# Buttons #}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-          <button onclick="cancelSpin()" type="button"
-            style="padding:11px;border-radius:8px;background:rgba(255,255,255,0.04);color:#777;border:1px solid rgba(255,255,255,0.1);font-size:13px;font-weight:700;">
-            Cancel
-          </button>
-          <button id="spin_btn" onclick="doSpin()" type="button"
-            style="padding:11px;border-radius:8px;background:linear-gradient(135deg,rgba(155,89,182,0.3),rgba(125,60,152,0.25));color:#c084fc;border:1px solid rgba(155,89,182,0.5);font-size:13px;font-weight:900;">
-            &#9670; Pick!
-          </button>
-        </div>
-        <button id="spin_confirm_btn" onclick="confirmSpin()" type="button"
-          style="display:none;width:100%;padding:12px;border-radius:8px;background:linear-gradient(135deg,rgba(155,89,182,0.4),rgba(125,60,152,0.35));color:#fff;border:1px solid rgba(155,89,182,0.6);font-size:14px;font-weight:900;letter-spacing:1px;">
-          &#10003; Confirm Assignment
-        </button>
-      </div>
-    </div>
 
     {# ── Confirm extra player modal ── #}
     <div id="confirm_extra_modal">
@@ -387,16 +398,6 @@
         </button>
       </div>
 
-      {% if show_spin %}
-      <button onclick="openSpinModal()" type="button"
-        style="width:100%;margin-top:8px;padding:12px;border-radius:8px;
-               background:linear-gradient(135deg,rgba(155,89,182,0.22),rgba(125,60,152,0.18));
-               color:#a855f7;border:1px solid rgba(155,89,182,0.4);
-               font-size:14px;font-weight:900;letter-spacing:1px;
-               animation:spinPulse 2s ease-in-out infinite;">
-        🎰 SPIN to Assign
-      </button>
-      {% endif %}
 
       {% if show_ply_spin_btn %}
       <button onclick="startPlySpin()" type="button"
@@ -545,7 +546,8 @@
 
       {# LEFT: Player wheel #}
       <div>
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#2ecc71;margin-bottom:10px;text-align:center;">Remaining Players</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#2ecc71;margin-bottom:4px;text-align:center;">Remaining Players</div>
+        <div style="font-size:9px;color:#444;text-align:center;margin-bottom:8px;">Click to select · or use Spin</div>
         <div id="psr_player_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;">
           {% for p in ply_spin_players %}
           <div class="sr-cell" data-id="{{ p.serial_number }}" data-name="{{ p.name|escapejs }}" data-base="{{ p.base_price }}">
@@ -585,7 +587,8 @@
 
       {# RIGHT: Team wheel #}
       <div>
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#f39c12;margin-bottom:10px;text-align:center;">All Teams</div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#f39c12;margin-bottom:4px;text-align:center;">All Teams</div>
+        <div style="font-size:9px;color:#444;text-align:center;margin-bottom:8px;">Click to select · or use Spin</div>
         <div id="psr_team_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:14px;">
           {% for t in teams %}
           <div class="sr-cell sr-cell-team" data-id="{{ t.team_serial_number }}" data-name="{{ t.name|escapejs }}">
@@ -635,7 +638,7 @@
   input[type=number] { -moz-appearance:textfield; }
 
   /* In-card modals (force sell, unsold, not playing, confirm extra) */
-  #force_sell_modal, #unsold_modal, #not_playing_modal, #confirm_extra_modal, #spin_modal {
+  #force_sell_modal, #unsold_modal, #not_playing_modal, #confirm_extra_modal {
     display:none;
     position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;
     background:rgba(0,0,0,0.80);border-radius:12px;
@@ -644,8 +647,7 @@
   #force_sell_modal.visible,
   #unsold_modal.visible,
   #not_playing_modal.visible,
-  #confirm_extra_modal.visible,
-  #spin_modal.visible { display:flex; }
+  #confirm_extra_modal.visible { display:flex; }
 
   /* ── Spin Round cells ── */
   .sr-cell {
@@ -654,6 +656,10 @@
     border-radius:8px;padding:10px 8px;text-align:center;
     color:#ccc;cursor:default;
     transition:background 0.07s,border-color 0.07s,color 0.07s,box-shadow 0.07s;
+  }
+  #psr_player_grid .sr-cell, #psr_team_grid .sr-cell { cursor:pointer; }
+  #psr_player_grid .sr-cell:hover:not(.sr-winner), #psr_team_grid .sr-cell:hover:not(.sr-winner-team) {
+    border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.04);
   }
   .sr-cell-team {
     background:rgba(243,156,18,0.05);
@@ -668,7 +674,11 @@
   .sr-cell.sr-winner {
     border-color:rgba(155,89,182,1);
     color:#fff;
-    animation:casinoWin 0.7s ease-in-out infinite alternate;
+    animation:srWin 0.7s ease-in-out infinite alternate;
+  }
+  @keyframes srWin {
+    from { box-shadow:0 0 10px rgba(155,89,182,0.5); }
+    to   { box-shadow:0 0 28px rgba(155,89,182,1), 0 0 50px rgba(155,89,182,0.4); }
   }
   .sr-cell.sr-winner-team {
     background:rgba(243,156,18,0.22) !important;
@@ -688,36 +698,6 @@
     50%      { box-shadow:0 0 0 8px rgba(155,89,182,0.2); }
   }
 
-  .casino-cell {
-    background:rgba(255,255,255,0.03);
-    border:1px solid rgba(255,255,255,0.07);
-    border-radius:8px;
-    padding:10px 6px;
-    color:#666;
-    cursor:default;
-    transition:background 0.08s, border-color 0.08s, color 0.08s, box-shadow 0.08s;
-  }
-  .casino-cell.casino-active {
-    background:rgba(243,156,18,0.18);
-    border-color:rgba(243,156,18,0.7);
-    color:#f39c12;
-    box-shadow:0 0 14px rgba(243,156,18,0.35);
-  }
-  .casino-cell.casino-winner {
-    background:rgba(155,89,182,0.28);
-    border-color:rgba(155,89,182,0.9);
-    color:#fff;
-    animation:casinoWin 0.7s ease-in-out infinite alternate;
-  }
-  @keyframes casinoWin {
-    from { box-shadow:0 0 10px rgba(155,89,182,0.5); }
-    to   { box-shadow:0 0 28px rgba(155,89,182,1), 0 0 50px rgba(155,89,182,0.4); }
-  }
-
-  @keyframes spinPulse {
-    0%,100% { box-shadow:0 0 0 0 rgba(155,89,182,0); }
-    50%      { box-shadow:0 0 0 6px rgba(155,89,182,0.25); }
-  }
 </style>
 
 <script>
@@ -862,6 +842,13 @@ function post(url, body) {
   .catch(() => { if (msg) msg.innerText = "Network error — try again"; });
 }
 
+function refreshPoints() {
+  fetch('/auction/refresh/', {method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'}})
+    .then(r => r.json())
+    .then(d => { if (d.status === 'ok') location.reload(); })
+    .catch(() => {});
+}
+
 function sellPlayer() {
   if (!selectedTeamId) {
     const msg = document.getElementById("action_msg");
@@ -872,23 +859,19 @@ function sellPlayer() {
   post("/auction/sell/", "player_id={{ player.serial_number|default:0 }}&team_id=" + selectedTeamId + "&amount=" + amount);
 }
 
-// Auto-reload only when a player is expected but not yet picked
-// Not when pool_exhausted (admin must act) and not during transitions
-{% if not player and not state.awaiting_transition and not pool_exhausted %}
+// Auto-reload only when a player is expected but not yet picked.
+// Not during spin round (spin board handles its own flow), pool exhaustion, or transitions.
+{% if not player and not state.awaiting_transition and not pool_exhausted and not show_spin_round %}
 setTimeout(() => location.reload(), 4000);
 {% endif %}
 
 // ══════════════════════════════════════════════
-// ── SPIN ROUND (dual board) ──
+// ── SPIN BOUNCE ANIMATION (shared by ICON + PLY spin rounds) ──
 // ══════════════════════════════════════════════
-{% if show_spin_round %}
-let _srPlayerWinner = null;
-let _srTeamWinner   = null;
-let _srAnimating    = false;
 
 function _srBounce(gridId, winnerIdx, winnerClass, duration, cb) {
   const cells = Array.from(document.querySelectorAll('#' + gridId + ' .sr-cell'));
-  if (!cells.length) return;
+  if (!cells.length) { cb && cb(); return; }
   cells.forEach(c => c.classList.remove('sr-active', 'sr-winner', 'sr-winner-team'));
 
   let elapsed = 0, d = 55;
@@ -927,10 +910,17 @@ function _srGetCells(gridId) {
 function _srPickRandom(gridId) {
   return Math.floor(Math.random() * _srGetCells(gridId).length);
 }
+
+// ══════════════════════════════════════════════
+// ── ICON SPIN ROUND (dual board) ──
+// ══════════════════════════════════════════════
+{% if show_spin_round %}
+let _srPlayerWinner = null;
+let _srTeamWinner   = null;
+let _srAnimating    = false;
+
 function _srSetBtnsDisabled(v) {
-  ['sr_spin_player_btn','sr_spin_team_btn','sr_spin_both_btn'].forEach(id => {
-    const b = document.getElementById(id); if (b) b.disabled = v;
-  });
+  const b = document.getElementById('sr_spin_both_btn'); if (b) b.disabled = v;
 }
 function _srUpdateResult() {
   const mid = document.getElementById('sr_result_mid');
@@ -943,28 +933,6 @@ function _srUpdateResult() {
   } else {
     mid.style.display = 'none'; btn.style.display = 'none';
   }
-}
-
-function srSpinPlayer() {
-  if (_srAnimating) return;
-  _srAnimating = true; _srPlayerWinner = null; _srSetBtnsDisabled(true); _srUpdateResult();
-  const idx = _srPickRandom('sr_player_grid');
-  const cell = _srGetCells('sr_player_grid')[idx];
-  _srBounce('sr_player_grid', idx, 'sr-winner', 3200, () => {
-    _srPlayerWinner = { id: cell.dataset.id, name: cell.dataset.name, base: cell.dataset.base };
-    _srAnimating = false; _srSetBtnsDisabled(false); _srUpdateResult();
-  });
-}
-
-function srSpinTeam() {
-  if (_srAnimating) return;
-  _srAnimating = true; _srTeamWinner = null; _srSetBtnsDisabled(true); _srUpdateResult();
-  const idx = _srPickRandom('sr_team_grid');
-  const cell = _srGetCells('sr_team_grid')[idx];
-  _srBounce('sr_team_grid', idx, 'sr-winner-team', 3200, () => {
-    _srTeamWinner = { id: cell.dataset.id, name: cell.dataset.name };
-    _srAnimating = false; _srSetBtnsDisabled(false); _srUpdateResult();
-  });
 }
 
 function srSpinBoth() {
@@ -990,123 +958,48 @@ function srConfirm() {
   if (!_srPlayerWinner || !_srTeamWinner) return;
   const msg = document.getElementById('sr_action_msg');
   if (msg) msg.innerText = '';
+  const assignedPlayerId = _srPlayerWinner.id;
   fetch('/auction/spin-round/', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'player_id=' + _srPlayerWinner.id + '&team_id=' + _srTeamWinner.id
+    body: 'player_id=' + assignedPlayerId + '&team_id=' + _srTeamWinner.id
   })
   .then(r => r.json())
   .then(d => {
-    if (d.status === 'ok') location.reload();
-    else if (msg) msg.innerText = d.message || 'Error — try again';
+    if (d.status === 'ok') {
+      const assignedTeamId = _srTeamWinner.id;
+      // Remove assigned player from left panel
+      const playerCell = document.querySelector('#sr_player_grid .sr-cell[data-id="' + assignedPlayerId + '"]');
+      if (playerCell) playerCell.remove();
+      // Remove assigned team from right panel (they now have the role)
+      const teamCell = document.querySelector('#sr_team_grid .sr-cell[data-id="' + assignedTeamId + '"]');
+      if (teamCell) teamCell.remove();
+      // If no players left (or no teams left), reload to advance to next round
+      if (!document.querySelectorAll('#sr_player_grid .sr-cell').length ||
+          !document.querySelectorAll('#sr_team_grid .sr-cell').length) {
+        location.reload(); return;
+      }
+      // Reset for next spin
+      _srPlayerWinner = null; _srTeamWinner = null;
+      document.querySelectorAll('#sr_player_grid .sr-cell, #sr_team_grid .sr-cell').forEach(c =>
+        c.classList.remove('sr-active','sr-winner','sr-winner-team'));
+      _srUpdateResult();
+      _srSetBtnsDisabled(false);
+      if (msg) msg.innerText = '✓ Assigned — spin again for next player';
+      setTimeout(() => { if (msg) msg.innerText = ''; }, 2000);
+    } else if (msg) msg.innerText = d.message || 'Error — try again';
   })
   .catch(() => { if (msg) msg.innerText = 'Network error — try again'; });
 }
 {% endif %}
 
-// ── Casino-grid assign ──
-const SPIN_BASE_PRICE = {% if player %}{{ player.base_price }}{% else %}0{% endif %};
-let _spinWinner = null;
-
-function openSpinModal() {
-  _spinWinner = null;
-  // Reset all cells
-  document.querySelectorAll(".casino-cell").forEach(c => {
-    c.classList.remove("casino-active", "casino-winner");
-  });
-  document.getElementById("spin_result").style.display = "none";
-  const spinBtn = document.getElementById("spin_btn");
-  spinBtn.style.display = "block";
-  spinBtn.disabled = false;
-  document.getElementById("spin_confirm_btn").style.display = "none";
-  document.getElementById("spin_modal").classList.add("visible");
-}
-
-function doSpin() {
-  const cells = Array.from(document.querySelectorAll(".casino-cell"));
-  if (!cells.length) return;
-  document.getElementById("spin_btn").disabled = true;
-
-  // Pick winner upfront
-  const winnerIdx = Math.floor(Math.random() * cells.length);
-  _spinWinner = {
-    id:   parseInt(cells[winnerIdx].dataset.teamId),
-    name: cells[winnerIdx].dataset.teamName
-  };
-
-  let cur = 0;
-  let delay = 55;          // starting interval (ms) — fast
-  let elapsed = 0;
-  const totalDuration = 3200;
-  const slowThreshold = totalDuration * 0.55;  // start slowing after 55%
-
-  // Build a path that must end on winnerIdx
-  // We'll run a random walk and force the last step to be winnerIdx
-  let steps = [];
-  let pos = 0;
-  while (elapsed < totalDuration) {
-    steps.push(pos);
-    elapsed += delay;
-    pos = (pos + 1) % cells.length;
-    if (elapsed > slowThreshold) delay = Math.min(420, delay * 1.13);
-  }
-  // Append enough steps to land exactly on winner
-  while (steps[steps.length - 1] !== winnerIdx) {
-    steps.push((steps[steps.length - 1] + 1) % cells.length);
-  }
-
-  // Animate step by step
-  let stepIdx = 0;
-  let accumulated = 0;
-  const intervals = [];
-
-  // Recompute per-step delays to match the acceleration curve
-  let d = 55;
-  const stepDelays = steps.map((_, i) => {
-    const v = d;
-    if (i / steps.length > 0.55) d = Math.min(420, d * 1.13);
-    return v;
-  });
-
-  function runStep() {
-    if (stepIdx > 0) cells[(steps[stepIdx - 1]) % cells.length].classList.remove("casino-active");
-    if (stepIdx >= steps.length) {
-      // Done — crown the winner
-      cells[winnerIdx].classList.add("casino-winner");
-      document.getElementById("spin_winner_name").innerText = _spinWinner.name;
-      document.getElementById("spin_result").style.display = "block";
-      document.getElementById("spin_btn").style.display = "none";
-      document.getElementById("spin_confirm_btn").style.display = "block";
-      return;
-    }
-    cells[steps[stepIdx] % cells.length].classList.add("casino-active");
-    stepIdx++;
-    setTimeout(runStep, stepDelays[stepIdx - 1] || 420);
-  }
-  runStep();
-}
-
-function confirmSpin() {
-  if (!_spinWinner) return;
-  document.getElementById("spin_modal").classList.remove("visible");
-  post(
-    "/auction/sell/",
-    "player_id={{ player.serial_number|default:0 }}&team_id=" + _spinWinner.id +
-    "&amount=" + SPIN_BASE_PRICE + "&force=true"
-  );
-  _spinWinner = null;
-}
-
-function cancelSpin() {
-  document.getElementById("spin_modal").classList.remove("visible");
-  _spinWinner = null;
-}
 
 {% if show_ply_spin_btn %}
 // ── PLY Spin Round ──
 const _allTeamsFull = {{ all_teams_full|yesno:"true,false" }};
 let _psrPlayerWinner = null;
 let _psrTeamWinner   = null;
+let _psrSpinning     = false;
 
 function startPlySpin() {
   if (_allTeamsFull) {
@@ -1138,12 +1031,6 @@ function hidePlySpin() {
   document.getElementById('normal_bidding_section').style.display = 'grid';
 }
 
-function _psrGetCells(gridId) {
-  return Array.from(document.querySelectorAll('#' + gridId + ' .sr-cell'));
-}
-function _psrPickRandom(cells) {
-  return Math.floor(Math.random() * cells.length);
-}
 function _psrSetBtnsDisabled(disabled) {
   ['psr_spin_player_btn','psr_spin_team_btn','psr_spin_both_btn'].forEach(id => {
     const b = document.getElementById(id);
@@ -1160,48 +1047,45 @@ function _psrUpdateResult() {
 }
 
 function psrSpinPlayer() {
-  const cells = _psrGetCells('psr_player_grid');
+  const cells = _srGetCells('psr_player_grid');
   if (!cells.length) return;
-  _psrPlayerWinner = null;
+  _psrPlayerWinner = null; _psrSpinning = true;
   document.getElementById('psr_result_mid').style.display  = 'none';
   document.getElementById('psr_confirm_btn').style.display = 'none';
   _psrSetBtnsDisabled(true);
-  const idx = _psrPickRandom(cells);
+  const idx = Math.floor(Math.random() * cells.length);
   _srBounce('psr_player_grid', idx, 'sr-winner', 3200, () => {
     _psrPlayerWinner = { id: cells[idx].dataset.id, name: cells[idx].dataset.name, base: cells[idx].dataset.base };
-    _psrSetBtnsDisabled(false);
-    _psrUpdateResult();
+    _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   });
 }
 function psrSpinTeam() {
-  const cells = _psrGetCells('psr_team_grid');
+  const cells = _srGetCells('psr_team_grid');
   if (!cells.length) return;
-  _psrTeamWinner = null;
+  _psrTeamWinner = null; _psrSpinning = true;
   document.getElementById('psr_result_mid').style.display  = 'none';
   document.getElementById('psr_confirm_btn').style.display = 'none';
   _psrSetBtnsDisabled(true);
-  const idx = _psrPickRandom(cells);
+  const idx = Math.floor(Math.random() * cells.length);
   _srBounce('psr_team_grid', idx, 'sr-winner-team', 3200, () => {
     _psrTeamWinner = { id: cells[idx].dataset.id, name: cells[idx].dataset.name };
-    _psrSetBtnsDisabled(false);
-    _psrUpdateResult();
+    _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   });
 }
 function psrSpinBoth() {
-  const pCells = _psrGetCells('psr_player_grid');
-  const tCells = _psrGetCells('psr_team_grid');
+  const pCells = _srGetCells('psr_player_grid');
+  const tCells = _srGetCells('psr_team_grid');
   if (!pCells.length || !tCells.length) return;
-  _psrPlayerWinner = null; _psrTeamWinner = null;
+  _psrPlayerWinner = null; _psrTeamWinner = null; _psrSpinning = true;
   document.getElementById('psr_result_mid').style.display  = 'none';
   document.getElementById('psr_confirm_btn').style.display = 'none';
   _psrSetBtnsDisabled(true);
-  const pIdx = _psrPickRandom(pCells);
-  const tIdx = _psrPickRandom(tCells);
+  const pIdx = Math.floor(Math.random() * pCells.length);
+  const tIdx = Math.floor(Math.random() * tCells.length);
   let pDone = false, tDone = false;
   function checkDone() {
     if (!pDone || !tDone) return;
-    _psrSetBtnsDisabled(false);
-    _psrUpdateResult();
+    _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   }
   _srBounce('psr_player_grid', pIdx, 'sr-winner',      3400, () => {
     _psrPlayerWinner = { id: pCells[pIdx].dataset.id, name: pCells[pIdx].dataset.name, base: pCells[pIdx].dataset.base };
@@ -1216,18 +1100,87 @@ function psrConfirm() {
   if (!_psrPlayerWinner || !_psrTeamWinner) return;
   const msg = document.getElementById('psr_action_msg');
   if (msg) msg.innerText = '';
+  const assignedPlayerId = _psrPlayerWinner.id;
+  const assignedTeamId   = _psrTeamWinner.id;
   fetch('/auction/spin-round/', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'player_id=' + _psrPlayerWinner.id + '&team_id=' + _psrTeamWinner.id
+    body: 'player_id=' + assignedPlayerId + '&team_id=' + assignedTeamId
   })
   .then(r => r.json())
   .then(d => {
-    if (d.status === 'ok') location.reload();
-    else if (msg) msg.innerText = d.message || 'Error — try again';
+    if (d.status === 'ok') {
+      // Remove assigned player from left panel
+      const playerCell = document.querySelector('#psr_player_grid .sr-cell[data-id="' + assignedPlayerId + '"]');
+      if (playerCell) playerCell.remove();
+      // Remove assigned team from right panel
+      const teamCell = document.querySelector('#psr_team_grid .sr-cell[data-id="' + assignedTeamId + '"]');
+      if (teamCell) teamCell.remove();
+      // If no players or no teams remain, reload to advance
+      if (!document.querySelectorAll('#psr_player_grid .sr-cell').length ||
+          !document.querySelectorAll('#psr_team_grid .sr-cell').length) {
+        location.reload(); return;
+      }
+      // Reset for next spin
+      _psrPlayerWinner = null; _psrTeamWinner = null;
+      document.querySelectorAll('#psr_player_grid .sr-cell, #psr_team_grid .sr-cell').forEach(c =>
+        c.classList.remove('sr-active', 'sr-winner', 'sr-winner-team'));
+      document.getElementById('psr_result_mid').style.display  = 'none';
+      document.getElementById('psr_confirm_btn').style.display = 'none';
+      _psrSetBtnsDisabled(false);
+      if (msg) msg.innerText = '✓ Assigned — spin again for next player';
+      setTimeout(() => { if (msg) msg.innerText = ''; }, 2000);
+    } else if (msg) msg.innerText = d.message || 'Error — try again';
   })
   .catch(() => { if (msg) msg.innerText = 'Network error — try again'; });
 }
+
+// ── Manual click-to-select for PLY spin cells ──
+document.addEventListener('DOMContentLoaded', function() {
+  const pgrid = document.getElementById('psr_player_grid');
+  const tgrid = document.getElementById('psr_team_grid');
+  if (pgrid) pgrid.addEventListener('click', function(e) {
+    if (_psrSpinning) return;
+    const cell = e.target.closest('.sr-cell');
+    if (!cell || !cell.dataset.id) return;
+    pgrid.querySelectorAll('.sr-cell').forEach(c =>
+      c.classList.remove('sr-winner', 'sr-active'));
+    cell.classList.add('sr-winner');
+    _psrPlayerWinner = { id: cell.dataset.id, name: cell.dataset.name, base: cell.dataset.base };
+    if (_psrTeamWinner) _psrUpdateResult();
+    else {
+      document.getElementById('psr_result_mid').style.display  = 'none';
+      document.getElementById('psr_confirm_btn').style.display = 'none';
+    }
+  });
+  if (tgrid) tgrid.addEventListener('click', function(e) {
+    if (_psrSpinning) return;
+    const cell = e.target.closest('.sr-cell');
+    if (!cell || !cell.dataset.id) return;
+    tgrid.querySelectorAll('.sr-cell').forEach(c =>
+      c.classList.remove('sr-winner-team', 'sr-active'));
+    cell.classList.add('sr-winner-team');
+    _psrTeamWinner = { id: cell.dataset.id, name: cell.dataset.name };
+    if (_psrPlayerWinner) _psrUpdateResult();
+    else {
+      document.getElementById('psr_result_mid').style.display  = 'none';
+      document.getElementById('psr_confirm_btn').style.display = 'none';
+    }
+  });
+});
+{% endif %}
+
+{% if state.is_active and not state.awaiting_transition and not show_spin_round %}
+// Auto-show capacity modals on page load
+(function() {
+  var maxFull   = {{ all_teams_max_full|yesno:"true,false" }};
+  var slotsFull = {{ all_teams_full|yesno:"true,false" }};
+  if (maxFull) {
+    document.getElementById('all_teams_max_modal').style.display = 'flex';
+  } else if (slotsFull) {
+    document.getElementById('all_teams_full_modal').style.display = 'flex';
+  }
+})();
 {% endif %}
 </script>
 

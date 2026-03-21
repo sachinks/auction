@@ -174,7 +174,7 @@ class TournamentConfig(models.Model):
     base_price_PLY  = models.IntegerField(default=100)
 
     category_order     = models.CharField(max_length=50, default="AR,BAT,BOWL,PLY")
-    max_rebid_attempts = models.IntegerField(default=4)
+    max_rebid_attempts = models.IntegerField(default=2)
 
     size_mapping = models.TextField(
         default='{"36":"XS","38":"S","40":"M","42":"L","44":"XL","46":"XXL"}',
@@ -238,12 +238,14 @@ class AuctionState(models.Model):
 
     PHASE_MAIN   = "MAIN"
     PHASE_REBID  = "REBID"
+    PHASE_SPIN   = "SPIN"     # Icon spin round — post-rebid, all unsold icons assigned via spin
     PHASE_FREBID = "FREBID"   # Final global rebid — all unsold across all roles
     PHASE_DONE   = "DONE"
 
     PHASE_CHOICES = [
         (PHASE_MAIN,   "Main Round"),
         (PHASE_REBID,  "Rebid Round"),
+        (PHASE_SPIN,   "Spin Round"),
         (PHASE_FREBID, "Final Rebid"),
         (PHASE_DONE,   "Auction Complete"),
     ]

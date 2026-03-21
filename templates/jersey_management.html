@@ -1,19 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-  <div>
-    <h2 style="font-size:20px;font-weight:800;">Jersey Management</h2>
-    <div style="font-size:11px;color:#555;margin-top:3px;">Click any Jersey Name or # field to edit inline. Changes save automatically on blur.</div>
+<div style="margin-bottom:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div>
+      <h2 style="font-size:20px;font-weight:800;">Jersey Management</h2>
+      <div style="font-size:11px;color:#555;margin-top:3px;">Click any Jersey Name or # field to edit inline. Changes save automatically on blur.</div>
+    </div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-    <div style="font-size:10px;color:#555;margin-right:4px;text-transform:uppercase;letter-spacing:1px;">Players</div>
-    <a href="/jersey/players/pdf/" style="background:#c0392b;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ PDF</a>
-    <a href="/jersey/players/excel/" style="background:#1a7a3a;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ Excel</a>
-    <div style="width:1px;height:24px;background:rgba(255,255,255,0.1);margin:0 4px;"></div>
-    <div style="font-size:10px;color:#555;margin-right:4px;text-transform:uppercase;letter-spacing:1px;">Organisers</div>
-    <a href="/jersey/organisers/pdf/" style="background:#7d3c98;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ PDF</a>
-    <a href="/jersey/organisers/excel/" style="background:#1a4a7a;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ Excel</a>
+
+  <!-- ── Export Board ───────────────────────────────────────── -->
+  <div style="background:rgba(6,6,20,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+
+    <!-- 1. Players -->
+    <div style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11px;font-weight:800;color:#c0392b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Players</div>
+      <div style="font-size:11px;color:#555;line-height:1.5;margin-bottom:12px;">
+        Team &amp; category-wise jersey list for all sold players (AR / BAT / BOWL / PLY). Includes jersey name, number, size and sponsor.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/jersey/players/pdf/" style="background:#c0392b;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ PDF</a>
+        <a href="/jersey/players/excel/" style="background:#1a7a3a;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ Excel</a>
+      </div>
+    </div>
+
+    <!-- 2. Staff & Organisers -->
+    <div style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px 16px;">
+      <div style="font-size:11px;font-weight:800;color:#7d3c98;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Staff &amp; Organisers</div>
+      <div style="font-size:11px;color:#555;line-height:1.5;margin-bottom:12px;">
+        Team staff (managers, coaches) grouped by team, plus all tournament organisers and volunteers.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/jersey/organisers/pdf/" style="background:#7d3c98;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ PDF</a>
+        <a href="/jersey/organisers/excel/" style="background:#1a4a7a;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ Excel</a>
+      </div>
+    </div>
+
+    <!-- 3. Complete List -->
+    <div style="border:1px solid rgba(183,119,13,0.3);border-radius:8px;padding:14px 16px;background:rgba(183,119,13,0.05);">
+      <div style="font-size:11px;font-weight:800;color:#b7770d;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Complete Jersey List</div>
+      <div style="font-size:11px;color:#555;line-height:1.5;margin-bottom:12px;">
+        Team &amp; category-wise jersey list for all sold players (AR / BAT / BOWL / PLY) and staff. Includes jersey name, number, size and sponsor, plus all tournament organisers and volunteers.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/jersey/combined/pdf/" style="background:#b7770d;color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;">↓ PDF</a>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -218,24 +251,25 @@
           <span style="font-size:9px;color:#555;font-style:italic;">—</span>
         </td>
         <td colspan="5" style="padding:6px 10px;">
-          <form method="POST" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="update_extra">
-            <input type="hidden" name="extra_id" value="{{ em.pk }}">
-            <input type="text" name="jersey_name" value="{{ em.jersey_name }}" placeholder="Jersey name…"
+          <div id="extra_fields_{{ em.pk }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <input class="extra-inp" id="ej_name_{{ em.pk }}" type="text" value="{{ em.jersey_name }}" placeholder="Jersey name…" disabled
               style="width:120px;font-size:12px;padding:5px 8px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:#e8e8e8;">
-            <input type="number" name="jersey_number" value="{{ em.jersey_number|default:'' }}" placeholder="#"
+            <input class="extra-inp" id="ej_jnum_{{ em.pk }}" type="number" value="{{ em.jersey_number|default:'' }}" placeholder="#" disabled
               style="width:50px;text-align:center;font-size:13px;font-weight:700;padding:5px 4px;color:#74a9f5;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;">
-            <input type="number" name="size_number" value="{{ em.size_number|default:'' }}" placeholder="40"
+            <input class="extra-inp" id="ej_snum_{{ em.pk }}" type="number" value="{{ em.size_number|default:'' }}" placeholder="40" disabled
               style="width:54px;text-align:center;font-size:12px;padding:5px 4px;color:#74a9f5;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;"
               oninput="extraSizeNum(this, '{{ em.pk }}')">
-            <input type="text" name="size_text" id="emtxt_{{ em.pk }}" value="{{ em.size_text|default:'' }}" placeholder="L"
+            <input class="extra-inp" id="emtxt_{{ em.pk }}" type="text" value="{{ em.size_text|default:'' }}" placeholder="L" disabled
               style="width:42px;text-align:center;font-size:12px;font-weight:700;padding:5px 4px;color:#2ecc71;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;text-transform:uppercase;"
               oninput="extraSizeTxt(this, '{{ em.pk }}')">
-            <input type="text" name="sponsor" value="{{ em.sponsor|default:'' }}" placeholder="Sponsor…"
+            <input class="extra-inp" id="ej_sponsor_{{ em.pk }}" type="text" value="{{ em.sponsor|default:'' }}" placeholder="Sponsor…" disabled
               style="width:90px;font-size:12px;padding:5px 8px;color:#e67e22;background:transparent;border:1px solid rgba(255,255,255,0.07);border-radius:5px;">
-            <button type="submit" style="background:rgba(39,174,96,0.15);color:#2ecc71;border:1px solid rgba(39,174,96,0.3);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;">Save</button>
-          </form>
+            <button id="extra_edit_btn_{{ em.pk }}" onclick="editExtra({{ em.pk }})" type="button"
+              style="background:rgba(116,169,245,0.12);color:#74a9f5;border:1px solid rgba(116,169,245,0.3);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;">✎ Edit</button>
+            <button id="extra_save_btn_{{ em.pk }}" onclick="saveExtraAjax({{ em.pk }})" type="button"
+              style="display:none;background:rgba(39,174,96,0.15);color:#2ecc71;border:1px solid rgba(39,174,96,0.3);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;">Save</button>
+            <span id="extra_status_{{ em.pk }}" style="font-size:11px;color:#2ecc71;display:none;">✓ Saved</span>
+          </div>
         </td>
         <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
           <form method="POST" style="display:inline;">
@@ -284,13 +318,15 @@
       </div>
       <div>
         <div style="font-size:10px;color:#74a9f5;margin-bottom:4px;">Size #</div>
-        <input type="number" name="extra_size_number" placeholder="40"
-          style="width:70px;padding:7px 8px;text-align:center;">
+        <input type="number" name="extra_size_number" id="add_extra_snum_{{ section.team.team_serial_number }}" placeholder="40"
+          style="width:70px;padding:7px 8px;text-align:center;"
+          oninput="addExtraSizeNum(this, 'add_extra_stxt_{{ section.team.team_serial_number }}')">
       </div>
       <div>
         <div style="font-size:10px;color:#2ecc71;margin-bottom:4px;">Size</div>
-        <input type="text" name="extra_size_text" placeholder="L"
-          style="width:56px;padding:7px 8px;text-align:center;text-transform:uppercase;">
+        <input type="text" name="extra_size_text" id="add_extra_stxt_{{ section.team.team_serial_number }}" placeholder="L"
+          style="width:56px;padding:7px 8px;text-align:center;text-transform:uppercase;"
+          oninput="addExtraSizeTxt(this, 'add_extra_snum_{{ section.team.team_serial_number }}')">
       </div>
       <div>
         <div style="font-size:10px;color:#e67e22;margin-bottom:4px;">Sponsor</div>
@@ -367,13 +403,15 @@
       </div>
       <div>
         <div style="font-size:10px;color:#74a9f5;margin-bottom:4px;">Size #</div>
-        <input type="number" name="org_size_number" placeholder="40"
-          style="width:70px;padding:7px 8px;text-align:center;">
+        <input type="number" name="org_size_number" id="add_org_snum" placeholder="40"
+          style="width:70px;padding:7px 8px;text-align:center;"
+          oninput="addExtraSizeNum(this, 'add_org_stxt')">
       </div>
       <div>
         <div style="font-size:10px;color:#2ecc71;margin-bottom:4px;">Size</div>
-        <input type="text" name="org_size_text" placeholder="L"
-          style="width:56px;padding:7px 8px;text-align:center;text-transform:uppercase;">
+        <input type="text" name="org_size_text" id="add_org_stxt" placeholder="L"
+          style="width:56px;padding:7px 8px;text-align:center;text-transform:uppercase;"
+          oninput="addExtraSizeTxt(this, 'add_org_snum')">
       </div>
       <div>
         <div style="font-size:10px;color:#e67e22;margin-bottom:4px;">Sponsor</div>
@@ -401,24 +439,24 @@
               {% if em.role_label %}<span style="font-size:10px;color:#555;margin-left:6px;background:#1a1a2e;padding:2px 7px;border-radius:3px;">{{ em.role_label }}</span>{% endif %}
             </td>
             <td colspan="2" style="padding:6px 16px;">
-              <form method="POST" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update_extra">
-                <input type="hidden" name="extra_id" value="{{ em.pk }}">
-                <input type="text" name="jersey_name" value="{{ em.jersey_name }}" placeholder="Jersey name…"
+              <div id="extra_fields_{{ em.pk }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input class="extra-inp" id="ej_name_{{ em.pk }}" type="text" value="{{ em.jersey_name }}" placeholder="Jersey name…" disabled
                   style="width:120px;font-size:12px;padding:5px 8px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;color:#e8e8e8;">
-                <input type="number" name="jersey_number" value="{{ em.jersey_number|default:'' }}" placeholder="#"
+                <input class="extra-inp" id="ej_jnum_{{ em.pk }}" type="number" value="{{ em.jersey_number|default:'' }}" placeholder="#" disabled
                   style="width:48px;text-align:center;font-size:13px;font-weight:700;padding:5px 4px;color:#74a9f5;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;">
-                <input type="number" name="size_number" value="{{ em.size_number|default:'' }}" placeholder="Size#"
+                <input class="extra-inp" id="ej_snum_{{ em.pk }}" type="number" value="{{ em.size_number|default:'' }}" placeholder="Size#" disabled
                   style="width:56px;text-align:center;font-size:12px;padding:5px 4px;color:#74a9f5;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;"
                   oninput="extraSizeNum(this, '{{ em.pk }}')">
-                <input type="text" name="size_text" id="emtxt_{{ em.pk }}" value="{{ em.size_text|default:'' }}" placeholder="L"
+                <input class="extra-inp" id="emtxt_{{ em.pk }}" type="text" value="{{ em.size_text|default:'' }}" placeholder="L" disabled
                   style="width:42px;text-align:center;font-size:12px;font-weight:700;padding:5px 4px;color:#2ecc71;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;text-transform:uppercase;"
                   oninput="extraSizeTxt(this, '{{ em.pk }}')">
-                <input type="text" name="sponsor" value="{{ em.sponsor|default:'' }}" placeholder="Sponsor…"
+                <input class="extra-inp" id="ej_sponsor_{{ em.pk }}" type="text" value="{{ em.sponsor|default:'' }}" placeholder="Sponsor…" disabled
                   style="width:90px;font-size:12px;padding:5px 8px;color:#e67e22;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:5px;">
-                <button type="submit" style="background:rgba(39,174,96,0.15);color:#2ecc71;border:1px solid rgba(39,174,96,0.3);padding:5px 12px;border-radius:4px;font-size:11px;font-weight:700;">Save</button>
-              </form>
+                <button id="extra_edit_btn_{{ em.pk }}" onclick="editExtra({{ em.pk }})" type="button"
+                  style="background:rgba(116,169,245,0.12);color:#74a9f5;border:1px solid rgba(116,169,245,0.3);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;">✎ Edit</button>
+                <button id="extra_save_btn_{{ em.pk }}" onclick="saveExtraAjax({{ em.pk }})" type="button" style="display:none;background:rgba(39,174,96,0.15);color:#2ecc71;border:1px solid rgba(39,174,96,0.3);padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;">Save</button>
+                <span id="extra_status_{{ em.pk }}" style="font-size:11px;color:#2ecc71;display:none;">✓ Saved</span>
+              </div>
             </td>
             <td style="padding:6px 12px;text-align:right;white-space:nowrap;">
               <form method="POST" style="display:inline;">
@@ -651,13 +689,89 @@ function extraSizeNum(inputEl, eid) {
   if (txtEl) txtEl.value = lbl;
 }
 function extraSizeTxt(inputEl, eid) {
-  const num    = sizeMapRev[inputEl.value.toUpperCase()] || "";
-  // find the size_number input in the same form
-  const form   = inputEl.closest("form");
-  if (form) {
-    const numEl = form.querySelector('[name="size_number"]');
-    if (numEl) numEl.value = num;
-  }
+  const num   = sizeMapRev[inputEl.value.toUpperCase()] || "";
+  const numEl = document.getElementById("ej_snum_" + eid);
+  if (numEl) numEl.value = num;
+}
+
+// ── Bidirectional size for add forms ──
+function addExtraSizeNum(inputEl, txtId) {
+  const lbl = sizeMap[String(inputEl.value)] || "";
+  const el  = document.getElementById(txtId);
+  if (el) el.value = lbl;
+}
+function addExtraSizeTxt(inputEl, numId) {
+  const num = sizeMapRev[inputEl.value.toUpperCase()] || "";
+  const el  = document.getElementById(numId);
+  if (el) el.value = num;
+}
+
+// ── Edit / Save toggle for extra members ──
+function editExtra(eid) {
+  document.querySelectorAll("#extra_fields_" + eid + " .extra-inp").forEach(el => {
+    el.disabled = false;
+    el.style.opacity = "1";
+  });
+  const editBtn = document.getElementById("extra_edit_btn_" + eid);
+  const saveBtn = document.getElementById("extra_save_btn_" + eid);
+  const status  = document.getElementById("extra_status_" + eid);
+  if (editBtn) editBtn.style.display = "none";
+  if (saveBtn) saveBtn.style.display = "inline";
+  if (status)  status.style.display  = "none";
+}
+
+function saveExtraAjax(eid) {
+  const data = new URLSearchParams();
+  data.append("extra_id",     eid);
+  data.append("jersey_name",  (document.getElementById("ej_name_"    + eid) || {}).value || "");
+  data.append("jersey_number",(document.getElementById("ej_jnum_"    + eid) || {}).value || "");
+  data.append("size_number",  (document.getElementById("ej_snum_"    + eid) || {}).value || "");
+  data.append("size_text",    (document.getElementById("emtxt_"      + eid) || {}).value || "");
+  data.append("sponsor",      (document.getElementById("ej_sponsor_" + eid) || {}).value || "");
+
+  const saveBtn = document.getElementById("extra_save_btn_" + eid);
+  const statusEl = document.getElementById("extra_status_" + eid);
+  if (saveBtn) saveBtn.disabled = true;
+
+  fetch("/jersey/save-extra/", { method: "POST", body: data })
+    .then(r => r.json())
+    .then(d => {
+      if (saveBtn) saveBtn.disabled = false;
+      if (d.status === "ok") {
+        // Sync size_text if server derived it
+        if (d.size_text) {
+          const txtEl = document.getElementById("emtxt_" + eid);
+          if (txtEl && !txtEl.value) txtEl.value = d.size_text;
+        }
+        // Disable inputs, show Edit button
+        document.querySelectorAll("#extra_fields_" + eid + " .extra-inp").forEach(el => {
+          el.disabled = true;
+        });
+        const editBtn = document.getElementById("extra_edit_btn_" + eid);
+        if (saveBtn)  saveBtn.style.display  = "none";
+        if (editBtn)  editBtn.style.display  = "inline";
+        if (statusEl) {
+          statusEl.style.color   = "#2ecc71";
+          statusEl.innerText     = "✓ Saved";
+          statusEl.style.display = "inline";
+          setTimeout(() => { statusEl.style.display = "none"; }, 3000);
+        }
+      } else {
+        if (statusEl) {
+          statusEl.style.color   = "#e74c3c";
+          statusEl.innerText     = "Error: " + (d.message || "failed");
+          statusEl.style.display = "inline";
+        }
+      }
+    })
+    .catch(() => {
+      if (saveBtn) saveBtn.disabled = false;
+      if (statusEl) {
+        statusEl.style.color   = "#e74c3c";
+        statusEl.innerText     = "Network error";
+        statusEl.style.display = "inline";
+      }
+    });
 }
 </script>
 

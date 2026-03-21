@@ -26,6 +26,8 @@ def round_label(cat, phase, pass_num):
     base = ROUND_DISPLAY.get(cat, cat)
     if phase == AuctionState.PHASE_REBID:
         suffix = " Rebid" + (f" · Pass {pass_num}" if pass_num > 1 else "")
+    elif phase == AuctionState.PHASE_SPIN:
+        suffix = " Spin Round"
     else:
         suffix = " Round" + (f" · Pass {pass_num}" if pass_num > 1 else "")
     return base + suffix
@@ -107,6 +109,23 @@ class AuctionEngine:
                 state.save()
                 return None
 
+            # Spin round: no player goes on block — spin board handles assignment.
+            # Check if spin is complete (no unsold left or all teams have the role).
+            if state.phase == AuctionState.PHASE_SPIN:
+                cat = state.current_category
+                remaining_unsold = Player.objects.filter(
+                    status=Player.STATUS_UNSOLD, role=cat
+                ).exists()
+                teams_without = Team.objects.exclude(
+                    player__role=cat, player__status=Player.STATUS_SOLD
+                ).exists()
+                if not remaining_unsold or not teams_without:
+                    self._set_next_transition(state)
+                state = AuctionState.get()
+                state.current_player = None
+                state.save()
+                return None
+
             player = self._pick_from_current_slot(state)
 
             if player:
@@ -121,8 +140,8 @@ class AuctionEngine:
                         f"advance_to_next_player: all {total_teams} teams blocked "
                         f"for {state.current_category} — auto-transitioning"
                     )
-                    # Mark remaining available players as unsold so Pass 2
-                    # pool (_pick_from_current_slot pass2) can pick them
+                    # Mark remaining available players as unsold so they are
+                    # eligible for the rebid/spin rounds.
                     from auction.models import Player as _Player
                     remaining = _Player.objects.filter(
                         role=state.current_category,
@@ -132,33 +151,13 @@ class AuctionEngine:
                     remaining.update(status=_Player.STATUS_UNSOLD)
                     logger.info(
                         f"Auto-marked {count} available "
-                        f"{state.current_category} players as UNSOLD for Pass 2"
+                        f"{state.current_category} players as UNSOLD (all teams blocked)"
                     )
                     self._set_next_transition(state)
                     state = AuctionState.get()
                     state.current_player = None
                     state.save()
                     return None
-
-                # ── Rebid pass announcement ──
-                # When in REBID phase and this player's rebid_count is higher
-                # than the last announced pass, show a modal before putting them
-                # on block so the admin sees "Rebid Pass 2", "Rebid Pass 3" etc.
-                if (state.phase == AuctionState.PHASE_REBID
-                        and player.rebid_count > state.announced_rebid_pass):
-                    base = ROUND_DISPLAY.get(state.current_category, state.current_category)
-                    pass_label = player.rebid_count
-                    state.announced_rebid_pass = player.rebid_count
-                    state.current_player       = player
-                    state.awaiting_transition  = True
-                    state.transition_message   = (
-                        f"{base} Rebid — Pass {pass_label}"
-                    )
-                    state.save()
-                    logger.info(
-                        f"Rebid pass {pass_label} announced for {player.name}"
-                    )
-                    return None   # page shows transition overlay; player set after Continue
 
                 state.current_player = player
                 state.save()
@@ -176,32 +175,30 @@ class AuctionEngine:
             raise
 
     def _pick_from_current_slot(self, state):
-        cat      = state.current_category
-        phase    = state.phase
-        pass_num = state.category_pass
+        cat   = state.current_category
+        phase = state.phase
         try:
             if phase == AuctionState.PHASE_MAIN:
-                if pass_num == 1:
-                    # Pass 1: fresh AVAILABLE players only
-                    pool = list(Player.objects.filter(status=Player.STATUS_AVAILABLE, role=cat))
-                else:
-                    # Pass 2: AVAILABLE + UNSOLD (second chance for all)
-                    pool = list(Player.objects.filter(
-                        role=cat,
-                        status__in=[Player.STATUS_AVAILABLE, Player.STATUS_UNSOLD]
-                    ))
+                # Main round: AVAILABLE players only
+                pool = list(Player.objects.filter(status=Player.STATUS_AVAILABLE, role=cat))
                 return random.choice(pool) if pool else None
             elif phase == AuctionState.PHASE_REBID:
-                if pass_num == 1:
-                    # Rebid Pass 1: UNSOLD only (blocking still active for icons)
-                    pool = list(Player.objects.filter(status=Player.STATUS_UNSOLD, role=cat))
-                else:
-                    # Rebid Pass 2: UNSOLD + AVAILABLE (open, no blocking)
+                # UNSOLD only.
+                # For icon categories: only pick players that haven't maxed out rebid
+                # attempts yet (those that maxed out stay UNSOLD for the spin round).
+                if cat in ICON_CATEGORIES and self.config:
+                    max_a = self.config.max_rebid_attempts
                     pool = list(Player.objects.filter(
+                        status=Player.STATUS_UNSOLD,
                         role=cat,
-                        status__in=[Player.STATUS_AVAILABLE, Player.STATUS_UNSOLD]
+                        rebid_count__lt=max_a,
                     ))
+                else:
+                    pool = list(Player.objects.filter(status=Player.STATUS_UNSOLD, role=cat))
                 return random.choice(pool) if pool else None
+            elif phase == AuctionState.PHASE_SPIN:
+                # Spin round — no player goes on block; spin board handles assignment.
+                return None
             return None
         except Exception as e:
             logger.error(f"_pick_from_current_slot error: {e}\n{traceback.format_exc()}")
@@ -211,93 +208,58 @@ class AuctionEngine:
         config         = self.config
         cat            = state.current_category
         phase          = state.phase
-        pass_num       = state.category_pass
         category_order = config.get_category_order() if config else ["AR", "BAT", "BOWL", "PLY"]
         base           = ROUND_DISPLAY.get(cat, cat)
 
         try:
-            if phase == AuctionState.PHASE_MAIN and pass_num == 1:
-                all_have_one = self._all_teams_have_icon(cat) if cat in ICON_CATEGORIES else True
+            if phase == AuctionState.PHASE_MAIN:
                 unsold_exist = Player.objects.filter(status=Player.STATUS_UNSOLD, role=cat).exists()
 
                 if cat in ICON_CATEGORIES:
-                    if all_have_one:
-                        # All teams have one — go straight to Pass 2 (no blocking)
-                        more = Player.objects.filter(role=cat).exclude(
-                            status__in=[Player.STATUS_NOT_PLAYING, Player.STATUS_SOLD]
-                        ).exists()
-                        if more:
-                            state.phase               = AuctionState.PHASE_MAIN
-                            state.category_pass       = 2
-                            state.auction_round      += 1
-                            state.awaiting_transition = True
-                            state.transition_message  = (
-                                f"All teams have a {base} · Starting {base} Pass 2 "
-                                f"(open bidding — no blocking)"
-                            )
-                            state.save()
-                            return
-                    else:
-                        # Not all teams have one — rebid for fairness first
-                        if unsold_exist:
-                            state.phase                  = AuctionState.PHASE_REBID
-                            state.auction_round         += 1
-                            state.awaiting_transition    = True
-                            state.announced_rebid_pass   = 0
-                            state.transition_message     = f"{base} Pass 1 complete · Starting {base} Rebid"
-                            state.save()
-                            return
-                        # No unsold but still available — Pass 2
-                        more = Player.objects.filter(role=cat).exclude(
-                            status__in=[Player.STATUS_NOT_PLAYING, Player.STATUS_SOLD]
-                        ).exists()
-                        if more:
-                            state.phase               = AuctionState.PHASE_MAIN
-                            state.category_pass       = 2
-                            state.auction_round      += 1
-                            state.awaiting_transition = True
-                            state.transition_message  = f"{base} Pass 1 complete · Starting {base} Pass 2"
-                            state.save()
-                            return
-                else:
-                    # Non-icon (PLY) — just check if any unsold remain
+                    # ICON: Main Round → Rebid Round (if unsold exist) → Spin Round
                     if unsold_exist:
-                        state.phase                = AuctionState.PHASE_REBID
-                        state.auction_round       += 1
-                        state.awaiting_transition  = True
-                        state.announced_rebid_pass = 0
-                        state.transition_message   = f"{base} Pass 1 complete · Starting {base} Rebid"
+                        state.phase               = AuctionState.PHASE_REBID
+                        state.auction_round      += 1
+                        state.awaiting_transition = True
+                        state.transition_message  = f"{base} Main Round complete · Rebid Round starts"
+                        state.save()
+                        return
+                else:
+                    # Non-icon (PLY) — check if any unsold remain
+                    if unsold_exist:
+                        state.phase               = AuctionState.PHASE_REBID
+                        state.auction_round      += 1
+                        state.awaiting_transition = True
+                        state.transition_message  = f"{base} Main Round complete · Rebid Round starts"
                         state.save()
                         return
 
                 self._transition_to_next_category(state, cat, category_order)
 
             elif phase == AuctionState.PHASE_REBID:
-                # After Rebid Pass 1 for icon categories: check for remaining AVAILABLE → Pass 2
-                # After Rebid Pass 2 (or PLY rebid): move to next category
-                if cat in ICON_CATEGORIES and pass_num == 1:
-                    more = Player.objects.filter(role=cat, status=Player.STATUS_AVAILABLE).exists()
-                    if more:
-                        state.phase               = AuctionState.PHASE_MAIN
-                        state.category_pass       = 2
+                if cat in ICON_CATEGORIES:
+                    # After rebid exhausted: if unsold players remain AND teams without the role exist
+                    # → transition to SPIN round.
+                    unsold_for_spin = Player.objects.filter(
+                        status=Player.STATUS_UNSOLD, role=cat
+                    ).exists()
+                    teams_without = Team.objects.exclude(
+                        player__role=cat, player__status=Player.STATUS_SOLD
+                    ).exists()
+                    if unsold_for_spin and teams_without:
+                        state.phase               = AuctionState.PHASE_SPIN
                         state.auction_round      += 1
                         state.awaiting_transition = True
-                        state.transition_message  = f"{base} Rebid complete · Starting {base} Pass 2"
+                        state.transition_message  = (
+                            f"{base} Rebid Round complete · SPIN Round starts"
+                        )
                         state.save()
                         return
-                # All rebid passes exhausted — move to next category
+                # Rebid exhausted and no spin needed — move to next category
                 self._transition_to_next_category(state, cat, category_order)
 
-            elif phase == AuctionState.PHASE_MAIN and pass_num == 2:
-                unsold_exist = Player.objects.filter(status=Player.STATUS_UNSOLD, role=cat).exists()
-                if unsold_exist:
-                    state.phase                = AuctionState.PHASE_REBID
-                    state.auction_round       += 1
-                    state.awaiting_transition  = True
-                    state.announced_rebid_pass = 0
-                    state.transition_message   = f"{base} Pass 2 complete · Starting {base} Rebid Pass 2"
-                    state.save()
-                    return
+            elif phase == AuctionState.PHASE_SPIN:
+                # Spin round complete — move to next category
                 self._transition_to_next_category(state, cat, category_order)
 
         except Exception as e:
@@ -323,7 +285,11 @@ class AuctionEngine:
                 state.category_pass       = 1
                 state.auction_round      += 1
                 state.awaiting_transition = True
-                state.transition_message  = f"{base_curr} Round complete · Starting {base_next} Round"
+                # Special message when all ICON rounds finish and Players round starts
+                if current_cat in ICON_CATEGORIES and next_cat not in ICON_CATEGORIES:
+                    state.transition_message = f"All ICON Rounds complete · Starting {base_next} Round"
+                else:
+                    state.transition_message = f"{base_curr} Round complete · Starting {base_next} Round"
                 state.save()
                 logger.info(f"Transition → {next_cat} Round")
                 return
@@ -336,20 +302,15 @@ class AuctionEngine:
         state.save()
 
     def get_blocked_team_ids(self, state):
-        cat      = state.current_category
-        phase    = state.phase
-        pass_num = state.category_pass
+        cat   = state.current_category
+        phase = state.phase
 
         if cat not in ICON_CATEGORIES:
             return set()
 
-        # Pass 2 and Rebid Pass 2 — no blocking, anyone can bid
-        if pass_num == 2:
-            return set()
-
         try:
-            # Pass 1 only — block teams that already have this icon role
-            if pass_num == 1 and phase in (AuctionState.PHASE_MAIN, AuctionState.PHASE_REBID):
+            # MAIN / REBID / SPIN — block teams that already have this icon role
+            if phase in (AuctionState.PHASE_MAIN, AuctionState.PHASE_REBID, AuctionState.PHASE_SPIN):
                 blocked = Team.objects.filter(
                     player__role=cat, player__status=Player.STATUS_SOLD
                 ).distinct().values_list("team_serial_number", flat=True)

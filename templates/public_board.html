@@ -169,9 +169,9 @@
 
   .team-mini:hover { border-color: rgba(255, 255, 255, 0.2); transform: translateY(-5px); }
 
-  .tm-hdr { border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .tm-hdr { border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .tm-name { font-weight: 700; font-size: 14px; color: #fff; }
-  .tm-pts { font-family: 'Orbitron', sans-serif; font-size: 12px; color: var(--primary-gold); font-weight: 700; }
+  .tm-pts { font-family: 'Orbitron', sans-serif; font-size: 11px; color: var(--primary-gold); font-weight: 700; opacity: 0.85; }
 
   /* --- HELPERS --- */
   .c-ar { color: var(--primary-gold); }
@@ -261,6 +261,25 @@
     {% endif %}
   </div>
 {% elif not show_summary %}
+  <!-- Round info + available players bar -->
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px; padding:16px 24px; background:rgba(10,10,30,0.6); backdrop-filter:blur(16px); border-radius:16px; border:1px solid var(--glass-border); animation: fadeInDown 0.5s ease-out;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:10px; text-transform:uppercase; letter-spacing:3px; color:#666; font-weight:700;">Round</span>
+      <span style="font-family:'Orbitron'; font-size:18px; font-weight:900; color:var(--primary-gold);">{{ round_label }}</span>
+    </div>
+    <div style="display:flex; gap:24px; align-items:center;">
+      <div style="text-align:center;">
+        <div style="font-size:9px; text-transform:uppercase; letter-spacing:2px; color:#555; margin-bottom:3px;">Available</div>
+        <div style="font-family:'Orbitron'; font-size:22px; font-weight:900; color:var(--accent-green);">{{ available_count }}</div>
+      </div>
+      {% if unsold_count %}
+      <div style="text-align:center;">
+        <div style="font-size:9px; text-transform:uppercase; letter-spacing:2px; color:#555; margin-bottom:3px;">Unsold</div>
+        <div style="font-family:'Orbitron'; font-size:22px; font-weight:900; color:var(--primary-red);">{{ unsold_count }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
   <div style="display:flex; gap:24px; align-items:flex-start;">
     <div class="on-block">
       {% if player %}
@@ -296,10 +315,28 @@
           <div class="ob-price-val">₹ {{ player.base_price }}</div>
         </div>
       {% else %}
+        {% if state.phase == "SPIN" or show_ply_spin_btn %}
+        <div style="padding:60px 20px; text-align:center;">
+          <div style="font-size:64px; margin-bottom:16px; animation: pulse 2s infinite;">🎰</div>
+          <div style="font-family:'Orbitron',sans-serif; font-size:22px; font-weight:900;
+                      background:linear-gradient(90deg,#a855f7,#f39c12);
+                      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+                      background-clip:text; letter-spacing:4px; margin-bottom:8px;">
+            SPIN ROUND
+          </div>
+          <div style="font-size:14px; color:#a855f7; font-weight:700; letter-spacing:2px; margin-bottom:6px;">
+            GOING ON
+          </div>
+          <div style="font-size:11px; color:#555; letter-spacing:2px; text-transform:uppercase;">
+            {{ round_label }}
+          </div>
+        </div>
+        {% else %}
         <div style="padding:100px 0;">
           <div style="font-size:64px; margin-bottom:20px; animation: pulse 2s infinite;">⏳</div>
           <div class="slbl">Waiting for next player...</div>
         </div>
+        {% endif %}
       {% endif %}
     </div>
 
@@ -308,21 +345,34 @@
         {% for team in teams %}
         <div class="team-mini">
           <div class="tm-hdr">
+            <div style="font-family:'Orbitron'; font-size:16px; font-weight:900; line-height:1; margin-bottom:3px;
+              background:linear-gradient(135deg,var(--primary-gold),var(--primary-red));
+              -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">{{ team.get_short }}</div>
             <div class="tm-name">{{ team.name }}</div>
-            <div class="tm-pts">{{ team.remaining_points }}</div>
+            <div class="tm-pts">₹ {{ team.remaining_points }} remaining</div>
           </div>
           {% if team.sold_players %}
             <div style="max-height: 200px; overflow-y: auto; padding-right: 5px;">
               {% for p in team.sold_players %}
               <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; gap:6px;">
                 <div style="display:flex; align-items:center; gap:5px; min-width:0;">
-                  {% if p.jersey and p.jersey.jersey_number %}
-                  <span style="font-family:'Orbitron'; font-size:9px; font-weight:900; color:var(--primary-gold); flex-shrink:0;">{{ p.jersey.jersey_number }}</span>
-                  {% endif %}
-                  <span class="{% if p.role == 'AR' %}c-ar{% elif p.role == 'BAT' %}c-bat{% elif p.role == 'BOWL' %}c-bowl{% else %}c-ply{% endif %}"
-                    style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    {% if p.jersey and p.jersey.jersey_name %}{{ p.jersey.jersey_name }}{% else %}{{ p.name }}{% endif %}
-                  </span>
+                  <span style="font-family:'Orbitron'; font-size:9px; font-weight:900; color:#444; flex-shrink:0;">#{{ p.serial_number }}</span>
+                  <div style="min-width:0;">
+                    <div>
+                      <span class="{% if p.role == 'AR' %}c-ar{% elif p.role == 'BAT' %}c-bat{% elif p.role == 'BOWL' %}c-bowl{% else %}c-ply{% endif %}"
+                        style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ p.name }}
+                      </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; margin-top:1px;">
+                      {% if p.jersey and p.jersey.jersey_name %}
+                      <span style="font-size:9px; color:#555; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.jersey.jersey_name }}</span>
+                      {% endif %}
+                      {% if p.jersey and p.jersey.jersey_number %}
+                      <span style="font-family:'Orbitron'; font-size:8px; font-weight:900; color:var(--primary-gold); flex-shrink:0;">{{ p.jersey.jersey_number }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
                 </div>
                 <span style="opacity:0.5; flex-shrink:0; font-size:11px;">{{ p.sold_price }}</span>
               </div>
@@ -397,9 +447,8 @@
               {% for p in team.sold_players %}
               <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
                 <div style="display:flex; align-items:center; gap:10px;">
-                  <span style="font-family:'Orbitron'; font-size:11px; font-weight:900; min-width:26px; text-align:right;
-                    {% if p.jersey and p.jersey.jersey_number %}color:var(--primary-gold);{% else %}color:#444;{% endif %}">
-                    {% if p.jersey and p.jersey.jersey_number %}{{ p.jersey.jersey_number }}{% else %}#{{ p.serial_number }}{% endif %}
+                  <span style="font-family:'Orbitron'; font-size:11px; font-weight:900; min-width:26px; text-align:right; color:#444;">
+                    #{{ p.serial_number }}
                   </span>
                   <div>
                     <div style="font-size:13px; font-weight:700;
@@ -407,11 +456,16 @@
                       {% elif p.role == 'BAT' %}color:var(--accent-blue);
                       {% elif p.role == 'BOWL' %}color:var(--accent-green);
                       {% else %}color:#bbb;{% endif %}">
-                      {% if p.jersey and p.jersey.jersey_name %}{{ p.jersey.jersey_name }}{% else %}{{ p.name }}{% endif %}
+                      {{ p.name }}
                     </div>
-                    {% if p.jersey and p.jersey.jersey_name and p.jersey.jersey_name != p.name %}
-                    <div style="font-size:10px; color:#555; margin-top:1px;">{{ p.name }}</div>
-                    {% endif %}
+                    <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+                      {% if p.jersey and p.jersey.jersey_name %}
+                      <span style="font-size:10px; color:#555;">{{ p.jersey.jersey_name }}</span>
+                      {% endif %}
+                      {% if p.jersey and p.jersey.jersey_number %}
+                      <span style="font-family:'Orbitron'; font-size:10px; font-weight:900; color:var(--primary-gold);">{{ p.jersey.jersey_number }}</span>
+                      {% endif %}
+                    </div>
                   </div>
                 </div>
                 <span class="badge badge-{{ p.role|lower }}" style="font-size:8px; padding:2px 8px; flex-shrink:0;">{{ p.role }}</span>
@@ -477,9 +531,8 @@
             {% for p in team.sold_players %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
               <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-family:'Orbitron'; font-size:11px; font-weight:900; min-width:26px; text-align:right;
-                  {% if p.jersey and p.jersey.jersey_number %}color:var(--primary-gold);{% else %}color:#444;{% endif %}">
-                  {% if p.jersey and p.jersey.jersey_number %}{{ p.jersey.jersey_number }}{% else %}#{{ p.serial_number }}{% endif %}
+                <span style="font-family:'Orbitron'; font-size:11px; font-weight:900; min-width:26px; text-align:right; color:#444;">
+                  #{{ p.serial_number }}
                 </span>
                 <div>
                   <div style="font-size:13px; font-weight:700;
@@ -489,9 +542,12 @@
                     {% else %}color:#bbb;{% endif %}">
                     {% if p.jersey and p.jersey.jersey_name %}{{ p.jersey.jersey_name }}{% else %}{{ p.name }}{% endif %}
                   </div>
-                  {% if p.jersey and p.jersey.jersey_name and p.jersey.jersey_name != p.name %}
-                  <div style="font-size:10px; color:#555; margin-top:1px;">{{ p.name }}</div>
-                  {% endif %}
+                  <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+                    <span style="font-size:10px; color:#555;">{{ p.name }}</span>
+                    {% if p.jersey and p.jersey.jersey_number %}
+                    <span style="font-family:'Orbitron'; font-size:10px; font-weight:900; color:var(--primary-gold);">{{ p.jersey.jersey_number }}</span>
+                    {% endif %}
+                  </div>
                 </div>
               </div>
               <span class="badge badge-{{ p.role|lower }}" style="font-size:8px; padding:2px 8px; flex-shrink:0;">{{ p.role }}</span>
@@ -509,6 +565,18 @@
 {% endif %}
 
 </div>
-<script>setTimeout(()=>location.reload(),5000);</script>
+<script>
+  async function silentRefresh() {
+    try {
+      const res  = await fetch(location.href, { cache: 'no-store' });
+      const html = await res.text();
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+      const newPage = doc.querySelector('.page');
+      if (newPage) document.querySelector('.page').innerHTML = newPage.innerHTML;
+    } catch (_) {}
+    setTimeout(silentRefresh, 5000);
+  }
+  setTimeout(silentRefresh, 5000);
+</script>
 </body>
 </html>

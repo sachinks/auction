@@ -842,7 +842,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_small_players_validate_count(self):
         valid, errors = _svc().validate_players_csv(self._path("small_players.csv"))
-        self.assertEqual(valid, 20)
+        self.assertEqual(valid, 27)
         self.assertEqual(errors, [])
 
     def test_small_teams_validate_count(self):
@@ -852,7 +852,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_medium_players_validate_count(self):
         valid, errors = _svc().validate_players_csv(self._path("medium_players.csv"))
-        self.assertEqual(valid, 43)
+        self.assertEqual(valid, 74)
         self.assertEqual(errors, [])
 
     def test_medium_teams_validate_count(self):
@@ -862,7 +862,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_large_players_validate_count(self):
         valid, errors = _svc().validate_players_csv(self._path("large_players.csv"))
-        self.assertEqual(valid, 101)
+        self.assertEqual(valid, 248)
         self.assertEqual(errors, [])
 
     def test_large_teams_validate_count(self):
@@ -900,7 +900,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_small_players_import_count(self):
         created, errors = _svc().import_players(self._path("small_players.csv"))
-        self.assertEqual(created, 20)
+        self.assertEqual(created, 27)
         self.assertEqual(errors, [])
 
     def test_small_teams_import_count(self):
@@ -910,7 +910,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_medium_players_import_count(self):
         created, errors = _svc().import_players(self._path("medium_players.csv"))
-        self.assertEqual(created, 43)
+        self.assertEqual(created, 74)
         self.assertEqual(errors, [])
 
     def test_medium_teams_import_count(self):
@@ -920,7 +920,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_large_players_import_count(self):
         created, errors = _svc().import_players(self._path("large_players.csv"))
-        self.assertEqual(created, 101)
+        self.assertEqual(created, 248)
         self.assertEqual(errors, [])
 
     def test_large_teams_import_count(self):
@@ -932,7 +932,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_small_players_creates_db_rows(self):
         _svc().import_players(self._path("small_players.csv"))
-        self.assertEqual(Player.objects.count(), 20)
+        self.assertEqual(Player.objects.count(), 27)
 
     def test_small_teams_creates_db_rows(self):
         _svc().import_teams(self._path("small_teams.csv"))
@@ -940,7 +940,7 @@ class TestSampleDataFiles(TestCase):
 
     def test_large_players_creates_db_rows(self):
         _svc().import_players(self._path("large_players.csv"))
-        self.assertEqual(Player.objects.count(), 101)
+        self.assertEqual(Player.objects.count(), 248)
 
     def test_large_teams_creates_db_rows(self):
         _svc().import_teams(self._path("large_teams.csv"))
@@ -949,41 +949,41 @@ class TestSampleDataFiles(TestCase):
     # ── role distribution in sample files ────────────────────
 
     def test_small_players_role_distribution(self):
-        """small: 4 AR + 4 BAT + 4 BOWL + 8 PLY = 20"""
+        """small: 4 AR + 4 BAT + 4 BOWL + 15 PLY = 27"""
         _svc().import_players(self._path("small_players.csv"))
         self.assertEqual(Player.objects.filter(role="AR").count(),   4)
         self.assertEqual(Player.objects.filter(role="BAT").count(),  4)
         self.assertEqual(Player.objects.filter(role="BOWL").count(), 4)
-        self.assertEqual(Player.objects.filter(role="PLY").count(),  8)
+        self.assertEqual(Player.objects.filter(role="PLY").count(),  15)
 
     def test_medium_players_role_distribution(self):
-        """medium: 8 AR + 8 BAT + 8 BOWL + 19 PLY = 43"""
+        """medium: 8 AR + 8 BAT + 8 BOWL + 50 PLY = 74"""
         _svc().import_players(self._path("medium_players.csv"))
         self.assertEqual(Player.objects.filter(role="AR").count(),   8)
         self.assertEqual(Player.objects.filter(role="BAT").count(),  8)
         self.assertEqual(Player.objects.filter(role="BOWL").count(), 8)
-        self.assertEqual(Player.objects.filter(role="PLY").count(),  19)
+        self.assertEqual(Player.objects.filter(role="PLY").count(),  50)
 
     def test_large_players_role_distribution(self):
-        """large: 16 AR + 16 BAT + 16 BOWL + 53 PLY = 101"""
+        """large: 16 AR + 16 BAT + 16 BOWL + 200 PLY = 248"""
         _svc().import_players(self._path("large_players.csv"))
         self.assertEqual(Player.objects.filter(role="AR").count(),   16)
         self.assertEqual(Player.objects.filter(role="BAT").count(),  16)
         self.assertEqual(Player.objects.filter(role="BOWL").count(), 16)
-        self.assertEqual(Player.objects.filter(role="PLY").count(),  53)
+        self.assertEqual(Player.objects.filter(role="PLY").count(),  200)
 
     # ── all imported players start AVAILABLE ─────────────────
 
     def test_small_players_all_available(self):
         _svc().import_players(self._path("small_players.csv"))
         self.assertEqual(
-            Player.objects.filter(status=Player.STATUS_AVAILABLE).count(), 20
+            Player.objects.filter(status=Player.STATUS_AVAILABLE).count(), 27
         )
 
     def test_large_players_all_available(self):
         _svc().import_players(self._path("large_players.csv"))
         self.assertEqual(
-            Player.objects.filter(status=Player.STATUS_AVAILABLE).count(), 101
+            Player.objects.filter(status=Player.STATUS_AVAILABLE).count(), 248
         )
 
     # ── reimport same file → all duplicates ──────────────────
@@ -992,9 +992,9 @@ class TestSampleDataFiles(TestCase):
         p = self._path("small_players.csv")
         c1, _ = _svc().import_players(p)
         c2, e2 = _svc().import_players(p)
-        self.assertEqual(c1, 20)
+        self.assertEqual(c1, 27)
         self.assertEqual(c2, 0)
-        self.assertEqual(len(e2), 20)
+        self.assertEqual(len(e2), 27)
 
     def test_small_teams_reimport_all_duplicates(self):
         p = self._path("small_teams.csv")

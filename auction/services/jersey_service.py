@@ -181,7 +181,7 @@ class JerseyService:
                 ).order_by("name")
                 rows = []
                 for p in players:
-                    j = jersey_map.get(p.serial_number)
+                    j = jersey_map.get(p.pk)
                     rows.append([
                         str(p.serial_number),
                         p.name,
@@ -376,7 +376,7 @@ class JerseyService:
                 row_num += 1
 
                 for i, p in enumerate(players, 1):
-                    j = jersey_map.get(p.serial_number)
+                    j = jersey_map.get(p.pk)
                     ws.append([
                         i, p.name,
                         j.jersey_name   if j else "",
@@ -506,3 +506,138 @@ class JerseyService:
         wb.save(buf)
         buf.seek(0)
         return buf
+
+    # ----------------------------------------
+    # EXPORT COMBINED JERSEY PDF — players + staff + organisers teamwise
+    # ----------------------------------------
+
+    def _staff_table(self, rows):
+        """Table for team staff / organiser extras."""
+        col_w = [8*mm, 38*mm, 25*mm, 28*mm, 18*mm, 16*mm, 30*mm]
+        header = [["#", "Name", "Role", "Jersey Name", "No.", "Size", "Sponsor"]]
+        data   = header + rows
+        style  = [
+            ("BACKGROUND",    (0, 0), (-1, 0), colors.HexColor("#2c3e50")),
+            ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
+            ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("GRID",          (0, 0), (-1, -1), 0.4, colors.HexColor("#cccccc")),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]
+        for i in range(2, len(data), 2):
+            style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#f9f9f9")))
+        t = Table(data, colWidths=col_w, repeatRows=1)
+        t.setStyle(TableStyle(style))
+        return t
+
+    def export_combined_pdf(self):
+        """
+        Full jersey report — teamwise.
+        For each team: players (by role) followed by team staff.
+        Followed by all organisers section.
+        """
+        ts            = TournamentSettings.get()
+        title_s, sub_s, team_s, cat_s = self._pdf_styles()
+        ROLE_LABELS   = {"AR": "All Rounders", "BAT": "Batsmen",
+                         "BOWL": "Bowlers", "PLY": "Players"}
+        ROLE_ORDER    = ["AR", "BAT", "BOWL", "PLY"]
+
+        jersey_map = {}
+        for j in Jersey.objects.select_related("player").all():
+            jersey_map[j.player_id] = j
+
+        extras_by_team = {}
+        for em in ExtraJerseyMember.objects.filter(
+                member_type=ExtraJerseyMember.TYPE_TEAM).order_by("name"):
+            extras_by_team.setdefault(em.team_id, []).append(em)
+
+        elements = []
+        elements.append(Paragraph(ts.tournament_name, title_s))
+        elements.append(Paragraph(
+            "Complete Jersey List — Players, Staff & Organisers", sub_s
+        ))
+        elements.append(HRFlowable(
+            width="100%", thickness=0.5, color=colors.HexColor("#cccccc")
+        ))
+
+        from auction.models import Player as _P
+        teams = Team.objects.all().order_by("team_serial_number")
+
+        for team in teams:
+            has_players = _P.objects.filter(
+                team=team, status=_P.STATUS_SOLD
+            ).exists()
+            staff = extras_by_team.get(team.pk, [])
+            if not has_players and not staff:
+                continue
+
+            elements.append(Spacer(1, 3*mm))
+            elements.append(Paragraph(f"  {team.name}", team_s))
+
+            for role in ROLE_ORDER:
+                players = _P.objects.filter(
+                    team=team, status=_P.STATUS_SOLD, role=role
+                ).order_by("serial_number")
+                rows = []
+                for p in players:
+                    j = jersey_map.get(p.pk)
+                    rows.append([
+                        str(p.serial_number), p.name,
+                        j.jersey_name        if j else "—",
+                        str(j.jersey_number) if j and j.jersey_number is not None else "—",
+                        j.size_text          if j else "—",
+                        j.sponsor            if j else "—",
+                    ])
+                if rows:
+                    elements.append(Paragraph(
+                        f"  {ROLE_LABELS.get(role, role)}  ({len(rows)})", cat_s
+                    ))
+                    elements.append(self._jersey_table(rows))
+                    elements.append(Spacer(1, 1.5*mm))
+
+            if staff:
+                staff_cat = ParagraphStyle(
+                    "SC", parent=cat_s,
+                    backColor=colors.HexColor("#d5e8d4"),
+                    textColor=colors.HexColor("#1a3a1a"),
+                )
+                elements.append(Paragraph(
+                    f"  Team Staff  ({len(staff)})", staff_cat
+                ))
+                s_rows = []
+                for i, em in enumerate(staff, 1):
+                    s_rows.append([
+                        str(i), em.name, em.role_label or "—",
+                        em.jersey_name or "—",
+                        str(em.jersey_number) if em.jersey_number is not None else "—",
+                        em.size_text or "—",
+                        em.sponsor or "—",
+                    ])
+                elements.append(self._staff_table(s_rows))
+                elements.append(Spacer(1, 2*mm))
+
+        orgs = ExtraJerseyMember.objects.filter(
+            member_type=ExtraJerseyMember.TYPE_ORGANISER
+        ).order_by("group_name", "name")
+        if orgs.exists():
+            elements.append(Spacer(1, 4*mm))
+            elements.append(Paragraph("  Organisers & Volunteers", team_s))
+            o_rows = []
+            for i, em in enumerate(orgs, 1):
+                o_rows.append([
+                    str(i), em.name, em.group_name or "—",
+                    em.jersey_name or "—",
+                    str(em.jersey_number) if em.jersey_number is not None else "—",
+                    em.size_text or "—",
+                    em.sponsor or "—",
+                ])
+            elements.append(self._staff_table(o_rows))
+
+        buffer = BytesIO()
+        doc    = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                                   leftMargin=12*mm, rightMargin=12*mm,
+                                   topMargin=12*mm, bottomMargin=12*mm)
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer

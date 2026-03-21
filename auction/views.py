@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Case, When, Value, IntegerField
 
 from .models import (
     Player, Team, TournamentConfig, TournamentSettings, Jersey,
@@ -29,6 +29,16 @@ from .services.fixture_service import (
 from config.logging_config import auction_logger, error_logger, system_logger
 from config.error_settings import api_error_response
 
+# Explicit role sort order: AR → BAT → BOWL → PLY
+_ROLE_ORDER = Case(
+    When(role="AR",   then=Value(0)),
+    When(role="BAT",  then=Value(1)),
+    When(role="BOWL", then=Value(2)),
+    When(role="PLY",  then=Value(3)),
+    default=Value(4),
+    output_field=IntegerField(),
+)
+
 
 # ────────────────────────────────────────────────
 # PUBLIC BOARD
@@ -39,7 +49,7 @@ def public_board(request):
     state    = AuctionState.get()
     config   = TournamentConfig.objects.first()
     ts       = TournamentSettings.get()   # always exists
-    teams    = Team.objects.all()
+    teams    = Team.objects.all().order_by("team_serial_number")
 
     # Build jersey lookup: player_id → jersey object
     jersey_map = {}
@@ -49,9 +59,9 @@ def public_board(request):
     for team in teams:
         players = Player.objects.filter(
             team=team, status=Player.STATUS_SOLD
-        ).order_by("role", "name")
+        ).order_by(_ROLE_ORDER, "serial_number")
         for p in players:
-            p.jersey = jersey_map.get(p.serial_number)
+            p.jersey = jersey_map.get(p.pk)
         team.sold_players = players
 
     # Pre-auction player list: shown whenever auction has not started
@@ -61,10 +71,10 @@ def public_board(request):
     pre_auction_players = None
     if show_player_list:
         pre_auction_players = {
-            "AR":   list(Player.objects.filter(role="AR").order_by("name")),
-            "BAT":  list(Player.objects.filter(role="BAT").order_by("name")),
-            "BOWL": list(Player.objects.filter(role="BOWL").order_by("name")),
-            "PLY":  list(Player.objects.filter(role="PLY").order_by("name")),
+            "AR":   list(Player.objects.filter(role="AR").order_by("serial_number")),
+            "BAT":  list(Player.objects.filter(role="BAT").order_by("serial_number")),
+            "BOWL": list(Player.objects.filter(role="BOWL").order_by("serial_number")),
+            "PLY":  list(Player.objects.filter(role="PLY").order_by("serial_number")),
         }
 
     available_count = 0
@@ -117,6 +127,11 @@ def public_board(request):
     else:
         knockout_matches = []
 
+    _is_ply_active   = state.current_category == "PLY" and state.is_active
+    show_ply_spin_btn = bool(_is_ply_active and Player.objects.filter(
+        role="PLY", status__in=[Player.STATUS_AVAILABLE, Player.STATUS_UNSOLD]
+    ).exists())
+
     return render(request, "public_board.html", {
         "player":               state.current_player,
         "teams":                teams,
@@ -134,6 +149,7 @@ def public_board(request):
         "interleaved_sched":    interleaved_sched,
         "any_match_played":     any_match_played,
         "knockout_matches":     knockout_matches,
+        "show_ply_spin_btn":    show_ply_spin_btn,
     })
 
 
@@ -169,12 +185,22 @@ def auction_control(request):
     increment   = bid_increment()
     blocked_ids = engine.get_blocked_team_ids(state)
 
+    # Compute before team loop so PLY blocking logic can use it
+    all_teams_full = not Team.objects.annotate(
+        sold_count=Count("player", filter=Q(player__status=Player.STATUS_SOLD))
+    ).filter(sold_count__lt=config.bidding_slots).exists()
+
+    _is_ply_round = state.current_category == "PLY"
+
     for t in teams:
         t.display_short = t.get_short()
         t.short          = t.get_short()   # alias for older template
         t.is_blocked    = t.team_serial_number in blocked_ids
         t.squad_count   = t.player_set.filter(status=Player.STATUS_SOLD).count()
         t.slots_left    = max(0, config.bidding_slots - t.squad_count)
+        # PLY round: block teams that filled their slots until all teams are full
+        if _is_ply_round and not all_teams_full and t.squad_count >= config.bidding_slots:
+            t.is_blocked = True
 
     pool_exhausted = (
         player is None
@@ -186,30 +212,19 @@ def auction_control(request):
 
     _is_icon = state.current_category in ICON_CATEGORIES
 
-    # Spin Round: icon REBID phase, only when players have exhausted rebid attempts
+    # Spin Round: icon SPIN phase — all unsold icon players + teams without the role
     _sr_teams = [t for t in teams if not t.is_blocked and t.slots_left > 0]
     _sr_players = list(
         Player.objects.filter(
             status=Player.STATUS_UNSOLD,
             role=state.current_category,
-            rebid_count__gte=max(0, (config.max_rebid_attempts - 1) if config else 0),
-        )
-    ) if _is_icon and state.phase == AuctionState.PHASE_REBID and config else []
-    show_spin_round  = bool(_is_icon and state.phase == AuctionState.PHASE_REBID
+        ).order_by("serial_number")
+    ) if _is_icon and state.phase == AuctionState.PHASE_SPIN else []
+    show_spin_round  = bool(_is_icon and state.phase == AuctionState.PHASE_SPIN
+                            and not state.awaiting_transition
                             and _sr_players and _sr_teams)
     spin_round_players = _sr_players if show_spin_round else []
     spin_round_teams   = _sr_teams   if show_spin_round else []
-
-    # Legacy single-player spin button (non-rebid icon, last rebid chance)
-    _spin_eligible = [t for t in teams if not t.is_blocked and t.slots_left > 0] \
-                     if _is_icon and player and config and not show_spin_round else []
-    show_spin = bool(
-        _is_icon and not show_spin_round
-        and player is not None and config is not None
-        and player.rebid_count >= max(0, config.max_rebid_attempts - 1)
-        and _spin_eligible
-    )
-    spin_teams = _spin_eligible if show_spin else []
 
     # Category base price for status bar
     category_base_price = config.base_price_for_role(state.current_category)
@@ -222,10 +237,10 @@ def auction_control(request):
     available_count = Player.objects.filter(status=Player.STATUS_AVAILABLE, role=cat).count()
     unsold_count    = Player.objects.filter(status=Player.STATUS_UNSOLD,    role=cat).count()
 
-    # All teams full check (force sell gate + PLY spin warning)
-    all_teams_full = not Team.objects.annotate(
+    # All teams at max capacity check
+    all_teams_max_full = not Team.objects.annotate(
         sold_count=Count("player", filter=Q(player__status=Player.STATUS_SOLD))
-    ).filter(sold_count__lt=config.bidding_slots).exists()
+    ).filter(sold_count__lt=config.max_squad_size).exists()
 
     # PLY manual spin round
     _is_ply = state.current_category == "PLY" and state.is_active
@@ -246,12 +261,11 @@ def auction_control(request):
         "available_count":      available_count,
         "unsold_count":         unsold_count,
         "ts":                   ts,
-        "show_spin":            show_spin,
-        "spin_teams":           spin_teams,
         "show_spin_round":      show_spin_round,
         "spin_round_players":   spin_round_players,
         "spin_round_teams":     spin_round_teams,
         "all_teams_full":       all_teams_full,
+        "all_teams_max_full":   all_teams_max_full,
         "show_ply_spin_btn":    show_ply_spin_btn,
         "ply_spin_players":     ply_spin_players,
     })
@@ -275,7 +289,7 @@ def start_auction(request):
             base_price_BOWL    = request.POST.get("base_price_BOWL"),
             base_price_PLY     = request.POST.get("base_price_PLY"),
             category_order     = request.POST.get("category_order", "AR,BAT,BOWL,PLY"),
-            max_rebid_attempts = request.POST.get("max_rebid_attempts", 4),
+            max_rebid_attempts = request.POST.get("max_rebid_attempts", 2),
         )
 
         for team in Team.objects.all():
@@ -427,6 +441,18 @@ def spin_round_assign(request):
             player_id, team_id, base_price, force=True
         )
         if success:
+            # Check if spin round is now complete
+            state = AuctionState.get()
+            if state.phase == AuctionState.PHASE_SPIN:
+                cat = state.current_category
+                remaining_unsold = Player.objects.filter(
+                    status=Player.STATUS_UNSOLD, role=cat
+                ).exists()
+                teams_without = Team.objects.exclude(
+                    player__role=cat, player__status=Player.STATUS_SOLD
+                ).exists()
+                if not remaining_unsold or not teams_without:
+                    AuctionEngine()._set_next_transition(state)
             return JsonResponse({"status": "ok"})
         return JsonResponse({"status": "error", "message": error or "Assignment failed"})
     except Exception as e:
@@ -513,7 +539,7 @@ def auction_summary(request):
     for team in teams:
         sold = Player.objects.filter(
             team=team, status=Player.STATUS_SOLD
-        ).order_by("role", "name")
+        ).order_by(_ROLE_ORDER, "serial_number")
         team.sold_players = sold
         team.total_spent  = sum(p.sold_price or 0 for p in sold)
         team.player_count = sold.count()
@@ -851,6 +877,7 @@ def jersey_portal(request):
                 jnum       = int(jnum_raw) if jnum_raw else None
                 snum_raw   = request.POST.get("extra_size_number", "").strip()
                 snum       = int(snum_raw) if snum_raw else None
+                stxt_in    = request.POST.get("extra_size_text", "").strip().upper()
                 sponsor    = request.POST.get("extra_sponsor", "").strip()
                 _cfg2 = TournamentConfig.objects.first()
                 _smap2 = {}
@@ -859,7 +886,11 @@ def jersey_portal(request):
                         _smap2 = _j2.loads(_cfg2.size_mapping)
                     except Exception:
                         pass
-                stxt = _smap2.get(str(snum), "") if snum else ""
+                stxt = stxt_in or (_smap2.get(str(snum), "") if snum else "")
+                if not snum and stxt_in:
+                    _rev = {v: k for k, v in _smap2.items()}
+                    _ns  = _rev.get(stxt_in)
+                    snum = int(_ns) if _ns else None
                 team = Team.objects.get(team_serial_number=team_id)
                 if name:
                     ExtraJerseyMember.objects.create(
@@ -884,6 +915,7 @@ def jersey_portal(request):
                 jnum       = int(jnum_raw) if jnum_raw else None
                 snum_raw   = request.POST.get("org_size_number", "").strip()
                 snum       = int(snum_raw) if snum_raw else None
+                stxt_in    = request.POST.get("org_size_text", "").strip().upper()
                 sponsor    = request.POST.get("org_sponsor", "").strip()
                 _cfg2 = TournamentConfig.objects.first()
                 _smap2 = {}
@@ -892,7 +924,11 @@ def jersey_portal(request):
                         _smap2 = _j2.loads(_cfg2.size_mapping)
                     except Exception:
                         pass
-                stxt = _smap2.get(str(snum), "") if snum else ""
+                stxt = stxt_in or (_smap2.get(str(snum), "") if snum else "")
+                if not snum and stxt_in:
+                    _rev = {v: k for k, v in _smap2.items()}
+                    _ns  = _rev.get(stxt_in)
+                    snum = int(_ns) if _ns else None
                 if name:
                     ExtraJerseyMember.objects.create(
                         name=name, role_label=role_label,
@@ -965,9 +1001,9 @@ def jersey_portal(request):
     for team in teams:
         players = list(Player.objects.filter(
             team=team, status=Player.STATUS_SOLD
-        ).order_by("role", "name"))
+        ).order_by(_ROLE_ORDER, "serial_number"))
         for p in players:
-            p.jersey = jersey_map.get(p.serial_number)
+            p.jersey = jersey_map.get(p.pk)
         team_sections.append({
             "team":    team,
             "players": players,
@@ -1092,6 +1128,62 @@ def update_size_mapping(request):
     except Exception as e:
         error_logger.error(f"update_size_mapping error: {e}\n{traceback.format_exc()}")
         return JsonResponse({"status": "error", "message": api_error_response(e)})
+
+
+@csrf_exempt
+@login_required
+def jersey_save_extra_ajax(request):
+    """AJAX endpoint to save an extra jersey member (team staff or organiser)."""
+    if request.method != "POST":
+        return JsonResponse({"status": "invalid"})
+    import json as _json
+    try:
+        eid      = int(request.POST.get("extra_id"))
+        jname    = request.POST.get("jersey_name", "").strip()
+        jnum_raw = request.POST.get("jersey_number", "").strip()
+        jnum     = int(jnum_raw) if jnum_raw else None
+        snum_raw = request.POST.get("size_number", "").strip()
+        snum     = int(snum_raw) if snum_raw else None
+        stxt_in  = request.POST.get("size_text", "").strip().upper()
+        sponsor  = request.POST.get("sponsor", "").strip()
+        _cfg     = TournamentConfig.objects.first()
+        _smap    = {}
+        if _cfg and _cfg.size_mapping:
+            try:
+                _smap = _json.loads(_cfg.size_mapping)
+            except Exception:
+                pass
+        stxt = stxt_in or (_smap.get(str(snum), "") if snum else "")
+        if not snum and stxt_in:
+            _rev     = {v: k for k, v in _smap.items()}
+            _ns      = _rev.get(stxt_in)
+            snum     = int(_ns) if _ns else None
+        em = ExtraJerseyMember.objects.get(pk=eid)
+        em.jersey_name   = jname
+        em.jersey_number = jnum
+        em.size_number   = snum
+        em.size_text     = stxt
+        em.sponsor       = sponsor
+        em.save()
+        return JsonResponse({"status": "ok", "size_text": stxt})
+    except Exception as e:
+        error_logger.error(f"jersey_save_extra_ajax error: {e}\n{traceback.format_exc()}")
+        return JsonResponse({"status": "error", "message": api_error_response(e)})
+
+
+@login_required
+def export_combined_jersey_pdf(request):
+    try:
+        buf = JerseyService().export_combined_pdf()
+        system_logger.info(f"export_combined_jersey_pdf downloaded by {request.user}")
+        response = HttpResponse(buf, content_type="application/pdf")
+        response["Content-Disposition"] = "attachment; filename=full_jersey_list.pdf"
+        return response
+    except Exception as e:
+        error_logger.error(
+            f"export_combined_jersey_pdf error: {e}\n{traceback.format_exc()}"
+        )
+        return HttpResponse(f"PDF generation error: {e}", status=500)
 
 
 @login_required

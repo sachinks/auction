@@ -67,12 +67,7 @@ class TestBlockedTeams(TestCase):
         self.assertIn(self.team_a.team_serial_number, blocked)
         self.assertNotIn(self.team_b.team_serial_number, blocked)
 
-    def test_ar_pass2_no_blocking(self):
-        state   = self._state(AuctionState.PHASE_MAIN, "AR", 2)
-        blocked = AuctionEngine().get_blocked_team_ids(state)
-        self.assertEqual(len(blocked), 0)
-
-    def test_ar_rebid_pass1_blocks(self):
+    def test_ar_rebid_blocks_team_that_has_ar(self):
         state   = self._state(AuctionState.PHASE_REBID, "AR", 1)
         blocked = AuctionEngine().get_blocked_team_ids(state)
         self.assertIn(self.team_a.team_serial_number, blocked)
@@ -289,52 +284,50 @@ class TestFullFlowSimulation(TestCase):
                 and state.is_active):
             self.engine.advance_to_next_player()
 
-    def test_pass3_transition_appears_after_ar_rebid(self):
+    def test_icon_main_rebid_spin_flow(self):
         """
-        Full flow: activate → AR pass 1 (AR1 unsold) → AR Rebid (AR1 unsold again to max)
-        → 'pass 3' transition to BAT Round must be set.
+        Full flow: activate → AR Main Round (AR1 unsold) → AR Rebid Round (AR1 unsold again)
+        → icon player stays UNSOLD → SPIN round transition fires.
+        No per-player rebid pass announcement modal (simplified flow).
         """
         # Activate
         self.engine.activate_auction()
         state = AuctionState.get()
         self.assertTrue(state.awaiting_transition)  # initial transition
 
-        # Confirm initial transition → AR pass 1 starts
+        # Confirm initial transition → AR Main Round starts, AR1 on block
         self._confirm()
         state = AuctionState.get()
         self.assertFalse(state.awaiting_transition)
         self.assertEqual(state.current_player, self.ar1)
 
-        # Mark AR1 unsold (rebid_count=1, max=2, so still in pool)
+        # Mark AR1 unsold (rebid_count=1, max=2, still in rebid pool)
         self._mark_unsold(self.ar1)
         self._auto_advance()   # pool exhausted (no more AVAILABLE AR) → REBID transition
         state = AuctionState.get()
-        self.assertTrue(state.awaiting_transition, "REBID transition (pass 2 warning) must fire")
+        self.assertTrue(state.awaiting_transition, "REBID transition must fire")
         self.assertEqual(state.phase, AuctionState.PHASE_REBID)
+        self.assertIn("Rebid Round", state.transition_message)
 
-        # Confirm pass-2 transition → REBID starts; engine stages AR1 and announces "Rebid — Pass 1"
+        # Confirm REBID transition → AR1 is immediately on block (no extra modal)
         self._confirm()
         state = AuctionState.get()
-        self.assertTrue(state.awaiting_transition, "Rebid Pass 1 announcement modal must fire")
-        self.assertIn("Pass 1", state.transition_message)
-        self.assertEqual(state.current_player, self.ar1)  # AR1 staged behind the modal
-
-        # Confirm the "Rebid Pass 1" modal → AR1 is now live on the block
-        self._confirm()
-        state = AuctionState.get()
-        self.assertFalse(state.awaiting_transition)
+        self.assertFalse(state.awaiting_transition, "No extra rebid pass modal should appear")
         self.ar1.refresh_from_db()
-        self.assertEqual(state.current_player, self.ar1)  # AR1 back in REBID pool
+        self.assertEqual(state.current_player, self.ar1)
 
-        # Mark AR1 unsold again (rebid_count=2, == max_rebid_attempts → auto-drop to NOT_PLAYING)
+        # Mark AR1 unsold again (rebid_count=2 == max_rebid_attempts).
+        # Icon players stay UNSOLD — NOT dropped to NOT_PLAYING (they go to spin round).
         self._mark_unsold(self.ar1)
         self.ar1.refresh_from_db()
-        self.assertEqual(self.ar1.status, Player.STATUS_NOT_PLAYING)
+        self.assertEqual(self.ar1.status, Player.STATUS_UNSOLD,
+                         "Icon players at max rebid must stay UNSOLD for spin round")
+        self.assertEqual(self.ar1.rebid_count, 2)
 
-        # REBID pool now empty — auto-advance should set "pass 3" transition (BAT)
+        # REBID pool now empty (no UNSOLD with rebid_count < 2) →
+        # auto-advance should set SPIN ROUND transition (AR1 still UNSOLD + team has no AR)
         self._auto_advance()
         state = AuctionState.get()
-        self.assertTrue(state.awaiting_transition, "pass 3 transition to BAT must be set")
-        self.assertEqual(state.phase, AuctionState.PHASE_MAIN)
-        self.assertEqual(state.current_category, "BAT")
-        self.assertIn("Batting", state.transition_message)
+        self.assertTrue(state.awaiting_transition, "Spin round transition must be set")
+        self.assertEqual(state.phase, AuctionState.PHASE_SPIN)
+        self.assertIn("SPIN Round", state.transition_message)

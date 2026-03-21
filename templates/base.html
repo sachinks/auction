@@ -60,9 +60,10 @@
   /* --- HEADER --- */
   .site-header {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 16px 30px;
+    gap: 12px;
+    padding: 20px 30px 16px;
     margin-bottom: 30px;
     background: rgba(20, 20, 35, 0.6);
     backdrop-filter: blur(12px);
@@ -80,7 +81,7 @@
 
   .site-title {
     font-family: 'Orbitron', sans-serif;
-    font-size: 22px;
+    font-size: 30px;
     font-weight: 900;
     letter-spacing: 3px;
     background: linear-gradient(90deg, var(--primary-gold), #fff, var(--primary-gold));
@@ -95,11 +96,11 @@
     to { background-position: 200% center; }
   }
 
-  .site-nav { display: flex; gap: 10px; flex-wrap: wrap; }
-  
+  .site-nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
   .site-nav a {
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     text-decoration: none;
     letter-spacing: 1px;

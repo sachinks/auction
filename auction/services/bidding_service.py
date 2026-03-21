@@ -128,17 +128,22 @@ class BiddingService:
         player.status       = Player.STATUS_UNSOLD
         action_type         = "UNSOLD"
 
-        # Auto-drop when rebid limit reached
-        # PLY: drop after max_rebid_attempts (default 3)
-        # Icon (AR/BAT/BOWL): drop after max_rebid_attempts × 2 to give more chances
+        # Auto-drop when rebid limit reached.
+        # PLY: drop to NOT_PLAYING after max_rebid_attempts.
+        # Icon (AR/BAT/BOWL): keep as UNSOLD — they become eligible for spin round.
         if config:
-            max_attempts = config.max_rebid_attempts  # same limit for all roles
-            if player.rebid_count >= max_attempts:
+            max_attempts = config.max_rebid_attempts
+            if player.rebid_count >= max_attempts and player.role not in ICON_CATEGORIES:
                 player.status = Player.STATUS_NOT_PLAYING
                 action_type   = "NOT_PLAYING"
                 logger.info(
                     f"mark_unsold: {player.name} ({player.role}) "
                     f"auto-dropped after {player.rebid_count} attempts"
+                )
+            elif player.rebid_count >= max_attempts and player.role in ICON_CATEGORIES:
+                logger.info(
+                    f"mark_unsold: {player.name} ({player.role}) "
+                    f"reached max rebid {player.rebid_count} — kept UNSOLD for spin round"
                 )
 
         player.save()
