@@ -18,7 +18,19 @@ class CSVService:
     REQUIRED_COLUMNS = ["name", "place", "role", "phone"]
     VALID_ROLES      = ["BAT", "BOWL", "AR", "PLY"]
 
+    # Placeholder values that mean "no phone" — normalized to empty string
+    PHONE_PLACEHOLDERS = re.compile(r"^[-–—]+$|^0+$|^(n/?a|none|nil|na)$", re.IGNORECASE)
+
+    def normalize_phone(self, phone):
+        """Return empty string for placeholder values, otherwise return phone as-is."""
+        if not phone or self.PHONE_PLACEHOLDERS.match(phone):
+            return ""
+        return phone
+
     def valid_phone(self, phone):
+        """phone must already be normalized before calling this."""
+        if not phone:
+            return True
         return re.match(r"^\+?[0-9]{10,12}$", phone)
 
     # ─────────────────────────────────────────────
@@ -49,10 +61,11 @@ class CSVService:
                     logger.warning(f"_process_players_csv: {msg}")
                     raise ValueError(msg)
 
+                seen = set()
                 for i, row in enumerate(reader, start=2):
                     name  = row.get("name", "").strip()
                     role  = row.get("role", "").strip().upper()
-                    phone = row.get("phone", "").strip()
+                    phone = self.normalize_phone(row.get("phone", "").strip())
                     place = row.get("place", "").strip()
 
                     if not name:
@@ -64,9 +77,10 @@ class CSVService:
                     if not self.valid_phone(phone):
                         errors.append(f"Row {i} ({name}): invalid phone '{phone}'")
                         continue
-                    if not dry_run and Player.objects.filter(name=name).exists():
-                        errors.append(f"Row {i} ({name}): duplicate player")
+                    if (name, place) in seen or Player.objects.filter(name=name, place=place).exists():
+                        errors.append(f"Row {i}: duplicate player '{name}' from '{place}'")
                         continue
+                    seen.add((name, place))
 
                     if not dry_run:
                         try:

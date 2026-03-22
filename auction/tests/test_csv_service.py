@@ -177,7 +177,6 @@ class TestPlayerValidation(TestCase):
             "98765-43210",  # hyphen
             "phone",        # letters
             "98765abc210",  # alphanumeric
-            "",             # empty
             "++9876543210", # double plus
         ]
         for phone in bad_phones:
@@ -295,7 +294,7 @@ class TestPlayerValidation(TestCase):
         rows = [
             {**VALID_PLAYER, "role": "BAD"},
             {**VALID_PLAYER, "name": ""},
-            {**VALID_PLAYER, "phone": "000"},
+            {**VALID_PLAYER, "phone": "123abc"},
         ]
         with tempfile.TemporaryDirectory() as d:
             path = _csv(rows, PLAYER_FIELDS, d)
@@ -349,23 +348,24 @@ class TestPlayerImport(TestCase):
             _svc().import_players(path)
         self.assertEqual(Player.objects.first().role, "BAT")
 
-    def test_duplicate_name_gives_error(self):
-        Player.objects.create(name="Rohit", role="BAT", base_price=0)
+    def test_duplicate_name_gives_error_on_import(self):
+        """Import checks for duplicates by name+place."""
+        Player.objects.create(name="Rohit", role="BAT", base_price=0, place="Mumbai")
         with tempfile.TemporaryDirectory() as d:
             path = _csv([VALID_PLAYER], PLAYER_FIELDS, d)
             created, errors = _svc().import_players(path)
         self.assertEqual(created, 0)
-        self.assertEqual(Player.objects.count(), 1)  # existing not doubled
+        self.assertEqual(Player.objects.count(), 1)
         self.assertTrue(len(errors) > 0)
 
-    def test_duplicate_not_checked_in_validate(self):
-        """Validate (dry-run) should NOT check for duplicate names."""
-        Player.objects.create(name="Rohit", role="BAT", base_price=0)
+    def test_duplicate_checked_in_validate(self):
+        """Validate (dry-run) should also catch duplicate name+place."""
+        Player.objects.create(name="Rohit", role="BAT", base_price=0, place="Mumbai")
         with tempfile.TemporaryDirectory() as d:
             path = _csv([VALID_PLAYER], PLAYER_FIELDS, d)
             valid, errors = _svc().validate_players_csv(path)
-        self.assertEqual(valid, 1)  # dry-run: no dup check
-        self.assertEqual(errors, [])
+        self.assertEqual(valid, 0)
+        self.assertEqual(len(errors), 1)
 
     def test_partial_valid_only_valid_imported(self):
         rows = [
@@ -512,8 +512,8 @@ class TestPlayerPhoneValidation(TestCase):
     def test_all_zeros_10_digits_valid(self):
         self.assertTrue(self._valid("0000000000"))
 
-    def test_empty_string_invalid(self):
-        self.assertFalse(self._valid(""))
+    def test_empty_string_valid(self):
+        self.assertTrue(self._valid(""))
 
 
 # ─────────────────────────────────────────────────────────────────────────────

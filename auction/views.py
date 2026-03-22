@@ -623,6 +623,7 @@ def upload_csv(request):
                 "medium_players":("players", "medium_players.csv"),
                 "large_teams":   ("teams",   "large_teams.csv"),
                 "large_players": ("players", "large_players.csv"),
+                "bsc_players":   ("players", "BSC_ply_list.csv"),
             }
             if demo_file not in FILE_MAP:
                 result = {"error": "Unknown demo file selected."}

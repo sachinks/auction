@@ -874,24 +874,25 @@ function _srBounce(gridId, winnerIdx, winnerClass, duration, cb) {
   if (!cells.length) { cb && cb(); return; }
   cells.forEach(c => c.classList.remove('sr-active', 'sr-winner', 'sr-winner-team'));
 
-  let elapsed = 0, d = 55;
+  // Speed based on player count: more players → faster initial step
+  const baseDelay = Math.max(20, Math.min(100, Math.round(1000 / cells.length)));
   const slowAt = duration * 0.55;
-  let steps = [], pos = 0;
+
+  // Pass 1: build stepDelays to know exactly how many steps fit in duration
+  const stepDelays = [];
+  let elapsed = 0, d = baseDelay;
   while (elapsed < duration) {
-    steps.push(pos);
+    stepDelays.push(d);
     elapsed += d;
-    pos = (pos + 1) % cells.length;
     if (elapsed > slowAt) d = Math.min(400, d * 1.13);
   }
-  while (steps[steps.length - 1] !== winnerIdx)
-    steps.push((steps[steps.length - 1] + 1) % cells.length);
 
-  d = 55; elapsed = 0;
-  const stepDelays = steps.map(() => {
-    const v = d; elapsed += d;
-    if (elapsed > duration * 0.55) d = Math.min(400, d * 1.13);
-    return v;
-  });
+  // Calculate start position so the last step naturally lands on winnerIdx
+  const stepCount = stepDelays.length;
+  const startPos = (winnerIdx - (stepCount - 1) % cells.length + cells.length) % cells.length;
+
+  // Build steps from startPos — guaranteed to end on winnerIdx within duration
+  const steps = stepDelays.map((_, k) => (startPos + k) % cells.length);
 
   let i = 0;
   function tick() {
@@ -899,7 +900,7 @@ function _srBounce(gridId, winnerIdx, winnerClass, duration, cb) {
     if (i >= steps.length) { cells[winnerIdx].classList.add(winnerClass); cb && cb(); return; }
     cells[steps[i]].classList.add('sr-active');
     i++;
-    setTimeout(tick, stepDelays[i-1] || 400);
+    setTimeout(tick, stepDelays[i-1]);
   }
   tick();
 }
@@ -950,8 +951,8 @@ function srSpinBoth() {
     _srTeamWinner   = { id: tCell.dataset.id, name: tCell.dataset.name };
     _srAnimating = false; _srSetBtnsDisabled(false); _srUpdateResult();
   }
-  _srBounce('sr_player_grid', pIdx, 'sr-winner',      3400, () => { pDone = true; checkDone(); });
-  _srBounce('sr_team_grid',   tIdx, 'sr-winner-team', 3000, () => { tDone = true; checkDone(); });
+  _srBounce('sr_player_grid', pIdx, 'sr-winner',      5000, () => { pDone = true; checkDone(); });
+  _srBounce('sr_team_grid',   tIdx, 'sr-winner-team', 5000, () => { tDone = true; checkDone(); });
 }
 
 function srConfirm() {
@@ -1054,7 +1055,7 @@ function psrSpinPlayer() {
   document.getElementById('psr_confirm_btn').style.display = 'none';
   _psrSetBtnsDisabled(true);
   const idx = Math.floor(Math.random() * cells.length);
-  _srBounce('psr_player_grid', idx, 'sr-winner', 3200, () => {
+  _srBounce('psr_player_grid', idx, 'sr-winner', 5000, () => {
     _psrPlayerWinner = { id: cells[idx].dataset.id, name: cells[idx].dataset.name, base: cells[idx].dataset.base };
     _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   });
@@ -1067,7 +1068,7 @@ function psrSpinTeam() {
   document.getElementById('psr_confirm_btn').style.display = 'none';
   _psrSetBtnsDisabled(true);
   const idx = Math.floor(Math.random() * cells.length);
-  _srBounce('psr_team_grid', idx, 'sr-winner-team', 3200, () => {
+  _srBounce('psr_team_grid', idx, 'sr-winner-team', 5000, () => {
     _psrTeamWinner = { id: cells[idx].dataset.id, name: cells[idx].dataset.name };
     _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   });
@@ -1087,11 +1088,11 @@ function psrSpinBoth() {
     if (!pDone || !tDone) return;
     _psrSpinning = false; _psrSetBtnsDisabled(false); _psrUpdateResult();
   }
-  _srBounce('psr_player_grid', pIdx, 'sr-winner',      3400, () => {
+  _srBounce('psr_player_grid', pIdx, 'sr-winner',      5000, () => {
     _psrPlayerWinner = { id: pCells[pIdx].dataset.id, name: pCells[pIdx].dataset.name, base: pCells[pIdx].dataset.base };
     pDone = true; checkDone();
   });
-  _srBounce('psr_team_grid',   tIdx, 'sr-winner-team', 3000, () => {
+  _srBounce('psr_team_grid',   tIdx, 'sr-winner-team', 5000, () => {
     _psrTeamWinner = { id: tCells[tIdx].dataset.id, name: tCells[tIdx].dataset.name };
     tDone = true; checkDone();
   });
