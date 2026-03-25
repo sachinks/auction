@@ -5,7 +5,7 @@ Handles team auctions, pool-based league fixtures, jersey management, and live p
 
 **Live:** https://auction-hyfq.onrender.com
 **Stack:** Django 6.0.3 · SQLite · Vanilla JS · ReportLab · openpyxl
-**Default login:** `sk` / `kpl2025`
+**Default login:** `sk` / *****
 
 ---
 
