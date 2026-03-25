@@ -4,7 +4,7 @@ A full-featured cricket auction and tournament management system built with Djan
 Handles team auctions, pool-based league fixtures, jersey management, and live public dashboards.
 
 **Live:** https://auction-hyfq.onrender.com
-**Stack:** Django 4.2 · SQLite · Vanilla JS · ReportLab · openpyxl
+**Stack:** Django 6.0.3 · SQLite · Vanilla JS · ReportLab · openpyxl
 **Default login:** `sk` / `kpl2025`
 
 ---
